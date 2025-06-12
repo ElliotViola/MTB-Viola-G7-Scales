@@ -419,7 +419,19 @@
         /**
          * Toggles the demonstration playback. If playing, stops it. If not, starts it.
          */
-        function toggleDemonstration() {
+        async function toggleDemonstration() { // Made async to await Tone.start()
+            // Ensure audio context is started on first user interaction with this button
+            if (!audioContextStarted) {
+                try {
+                    await Tone.start(); // Await the promise
+                    audioContextStarted = true;
+                    console.log("Audio context started!");
+                } catch (e) {
+                    console.error("Error starting audio context:", e);
+                    return; // Stop function execution
+                }
+            }
+
             if (isPlayingDemo) {
                 if (currentSequence) {
                     currentSequence.stop();
@@ -620,12 +632,7 @@
         // --- Event Listeners ---
 
         gimmeScaleButton.addEventListener('click', () => {
-            if (!audioContextStarted) {
-                Tone.start();
-                audioContextStarted = true;
-                console.log("Audio context started!");
-            }
-
+            // No longer directly starting audio context here, it's handled by demonstrationButton
             if (isPlayingDemo) {
                 toggleDemonstration();
             }
@@ -705,7 +712,6 @@
                 if (currentScaleSelected && scaleRatings[currentScaleSelected]) {
                     scaleRatings[currentScaleSelected].push(rating);
                     console.log(`Rated "${currentScaleSelected}" as ${rating} stars. All ratings:`, scaleRatings);
-                    // saveRatingsToFirestore(); // Removed Firebase save call
                 }
 
                 renderScalesList();
@@ -725,7 +731,7 @@
 
         closeModalButton.addEventListener('click', hideCongratulationsPopup);
 
-        // --- Initial Load Logic (Simplified without Firebase auth/listeners) ---
+        // --- Initial Load Logic ---
         window.onload = () => {
             scaleDisplay.textContent = "Click 'Gimme a Scale!' to start!";
             bpmValueDisplay.textContent = bpmSlider.value; // Set initial BPM display
