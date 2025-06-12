@@ -156,7 +156,7 @@
         <div id="allScalesList" class="scales-list-container grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 p-4 bg-gray-50 rounded-lg shadow-inner w-full max-h-60 overflow-y-auto">
             <!-- Scale items will be dynamically inserted here by JavaScript -->
         </div>
-        <p id="userIdDisplay" class="text-xs text-gray-400 mt-4">User ID: Loading...</p>
+        <!-- User ID display removed as Firebase is no longer used for persistence -->
     </div>
 
     <!-- Congratulations Modal -->
@@ -174,25 +174,7 @@
         </div>
     </div>
 
-    <script type="module">
-        // Firebase imports
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Firebase Global Variables (Provided by Canvas)
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-
-        let currentUserUid = null;
-        let isAuthReady = false; // Flag to indicate if auth state has been determined
-
+    <script>
         // Array of all MTB Grade 7 Viola Scales & Arpeggios from Memory (from the syllabus)
         const allScales = [
             "E major scale - 3 octaves",
@@ -224,8 +206,8 @@
         const scaleDisplay = document.getElementById('scaleDisplay');
         const gimmeScaleButton = document.getElementById('gimmeScaleButton');
         const togglePracticeModeButton = document.getElementById('togglePracticeModeButton');
-        const bpmSlider = document.getElementById('bpmSlider'); // New slider element
-        const bpmValueDisplay = document.getElementById('bpmValueDisplay'); // New BPM display
+        const bpmSlider = document.getElementById('bpmSlider');
+        const bpmValueDisplay = document.getElementById('bpmValueDisplay');
         const allScalesListContainer = document.getElementById('allScalesList');
         const actionContainer = document.getElementById('actionContainer');
         const demonstrationButton = document.getElementById('demonstrationButton');
@@ -234,7 +216,6 @@
         const congratulationsModal = document.getElementById('congratulationsModal');
         const closeModalButton = document.getElementById('closeModalButton');
         const modalScalesList = document.getElementById('modalScalesList');
-        const userIdDisplay = document.getElementById('userIdDisplay');
 
         // Tone.js Setup
         const synth = new Tone.PolySynth(Tone.Synth, {
@@ -249,7 +230,7 @@
             }
         }).toDestination();
 
-        Tone.Transport.bpm.value = bpmSlider.value; // Initialize BPM from slider value
+        Tone.Transport.bpm.value = bpmSlider.value;
         let currentSequence = null;
 
         const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -259,12 +240,6 @@
             'melodic minor': [0, 2, 3, 5, 7, 9, 11], // Ascending
             'chromatic': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
         };
-         // Melodic minor descending intervals are usually different, but for simplicity in this app,
-         // we'll derive it from the ascending notes then reverse.
-         // True melodic minor descending is natural minor (W-H-W-W-H-W-W) from scale degree 6.
-         // However, the current note generation for scales just reverses the ascending array (excluding top),
-         // which implies the same intervals downwards. For now, this is acceptable given the simple Tone.js approach.
-
 
         /**
          * Parses the scale name string to extract root, type, and octaves.
@@ -282,7 +257,7 @@
             if (lowerCaseName.includes("dominant 7th in")) {
                 const inIndex = parts.indexOf('in');
                 if (inIndex !== -1 && parts.length > inIndex + 1) {
-                    root = parts[inIndex + 1].toUpperCase(); // This 'root' is the KEY'S tonic (e.g., G for "in G", Eb for "in Eb")
+                    root = parts[inIndex + 1].toUpperCase();
                 } else {
                     console.error(`Could not parse key tonic for dominant 7th: ${scaleName}`);
                     return null;
@@ -291,7 +266,7 @@
             } else if (lowerCaseName.includes("diminished 7th on")) {
                 const onIndex = parts.indexOf('on');
                 if (onIndex !== -1 && parts.length > onIndex + 1) {
-                    root = parts[onIndex + 1].toUpperCase(); // This 'root' is the diminished 7th's root (e.g., D for "on D")
+                    root = parts[onIndex + 1].toUpperCase();
                 } else {
                     console.error(`Could not parse root for diminished 7th: ${scaleName}`);
                     return null;
@@ -306,7 +281,7 @@
 
                 if (lowerCaseName.includes("major scale")) type = 'major';
                 else if (lowerCaseName.includes("harmonic minor scale")) type = 'harmonic minor';
-                else if (lowerCaseName.includes("melodic minor scale")) type = 'melodic minor'; // Added melodic minor
+                else if (lowerCaseName.includes("melodic minor scale")) type = 'melodic minor';
                 else if (lowerCaseName.includes("chromatic scale")) type = 'chromatic';
                 else if (lowerCaseName.includes("arpeggio")) type = 'arpeggio';
                 else return null;
@@ -323,7 +298,7 @@
         /**
          * Generates an array of Tone.js note strings (e.g., "C4", "G#5") for a given scale,
          * including both ascending and descending notes for scales and arpeggios.
-         * @param {string} scaleName - The name of the scale (e.g., "B major scale - 2 octaves").
+         * @param {string} scaleName - The name of the scale (e.g., "E major scale - 3 octaves").
          * @returns {string[]} An array of note strings.
          */
         function getScaleNotes(scaleName) {
@@ -335,10 +310,8 @@
             let fullScaleNotes = [];
             const baseOctave = 3; // Starting octave for viola (lowest open string is C3)
 
-            let actualRootNoteForGeneration = root; // Default for scales/arpeggios (e.g., E for E major scale)
+            let actualRootNoteForGeneration = root;
 
-            // For dominant 7th, the 'root' from parseScaleName is the key's tonic (e.g., Eb).
-            // We need the dominant of that key for the arpeggio's root (e.g., Bb for Eb).
             let keyTonicIndex = noteNames.indexOf(root); // Index of the key's tonic
 
             if (type === 'dominant 7th') {
@@ -346,11 +319,9 @@
                     console.error(`Invalid key tonic for dominant 7th: ${root}`);
                     return [];
                 }
-                // Calculate the dominant note (7 semitones above the key tonic)
-                const dominantIndex = (keyTonicIndex + 7) % 12;
+                const dominantIndex = (keyTonicIndex + 7) % 12; // 7 semitones above key tonic
                 actualRootNoteForGeneration = noteNames[dominantIndex]; // e.g., Bb for Eb
             } else if (type === 'diminished 7th') {
-                 // For diminished 7th, the 'root' from parseScaleName is already the arpeggio's root (e.g., D).
                  actualRootNoteForGeneration = root;
             }
 
@@ -397,9 +368,9 @@
             } else if (type === 'dominant 7th') {
                 // For "Dominant 7th in Eb", the dominant is Bb.
                 // Arpeggio pattern for dominant 7th: Root, M3, P5, m7
-                const dominant7thIntervals = [0, 4, 7, 10];
+                const dominant7thIntervals = [0, 4, 7, 10]; // Bb, D, F, Ab
 
-                // Build the ascending part of the dominant 7th arpeggio (e.g., Bb3, D4, F4, Ab4, Bb4, D5, F5, Ab5)
+                // Build the ascending part of the dominant 7th arpeggio
                 for (let o = 0; o < octaves; o++) { // octaves is 2
                     for (let i = 0; i < dominant7thIntervals.length; i++) {
                         const midiNote = arpeggioOrScaleRootIndex + dominant7thIntervals[i] + (baseOctave * 12) + (o * 12);
@@ -410,7 +381,7 @@
                 ascendingNotes.push(Tone.Midi(arpeggioOrScaleRootIndex + (baseOctave * 12) + (octaves * 12)).toNote());
 
                 fullScaleNotes = [...ascendingNotes];
-                // Descending part: exclude the highest pivot note
+                // Descending part: exclude the highest pivot note (the highest root)
                 for (let i = ascendingNotes.length - 2; i >= 0; i--) {
                     fullScaleNotes.push(ascendingNotes[i]);
                 }
@@ -507,59 +478,6 @@
             const sum = ratings.reduce((acc, rating) => acc + rating, 0);
             return sum / ratings.length;
         }
-
-        /**
-         * Saves the current scale ratings to Firestore.
-         */
-        async function saveRatingsToFirestore() {
-            if (currentUserUid && isAuthReady) {
-                try {
-                    const docRef = doc(collection(db, `artifacts/${appId}/users/${currentUserUid}/scaleProgress`), 'ratings');
-                    const dataToSave = {};
-                    for (const scaleName in scaleRatings) {
-                        if (scaleRatings.hasOwnProperty(scaleName)) {
-                            dataToSave[scaleName] = scaleRatings[scaleName].length > 0 ? scaleRatings[scaleName] : [];
-                        }
-                    }
-                    await setDoc(docRef, dataToSave, { merge: true });
-                    console.log("Ratings saved to Firestore for user:", currentUserUid);
-                } catch (e) {
-                    console.error("Error saving ratings:", e);
-                }
-            } else {
-                console.warn("Cannot save ratings: User not authenticated or auth not ready.");
-            }
-        }
-
-        /**
-         * Sets up real-time listener for scale ratings from Firestore.
-         */
-        function setupRatingsListener() {
-            if (currentUserUid && isAuthReady) {
-                const docRef = doc(collection(db, `artifacts/${appId}/users/${currentUserUid}/scaleProgress`), 'ratings');
-                onSnapshot(docRef, (docSnap) => {
-                    if (docSnap.exists()) {
-                        const data = docSnap.data();
-                        console.log("Ratings loaded/updated from Firestore:", data);
-                        for (const scaleName of allScales) {
-                            scaleRatings[scaleName] = data[scaleName] || [];
-                        }
-                        renderScalesList();
-                    } else {
-                        console.log("No ratings found for user. Initializing empty ratings.");
-                        allScales.forEach(scale => {
-                            scaleRatings[scale] = [];
-                        });
-                        renderScalesList();
-                    }
-                }, (error) => {
-                    console.error("Error listening to ratings:", error);
-                });
-            } else {
-                console.warn("Cannot set up ratings listener: User not authenticated or auth not ready.");
-            }
-        }
-
 
         /**
          * Renders (or re-renders) the list of all scales in the UI.
@@ -787,7 +705,7 @@
                 if (currentScaleSelected && scaleRatings[currentScaleSelected]) {
                     scaleRatings[currentScaleSelected].push(rating);
                     console.log(`Rated "${currentScaleSelected}" as ${rating} stars. All ratings:`, scaleRatings);
-                    saveRatingsToFirestore();
+                    // saveRatingsToFirestore(); // Removed Firebase save call
                 }
 
                 renderScalesList();
@@ -807,31 +725,7 @@
 
         closeModalButton.addEventListener('click', hideCongratulationsPopup);
 
-        // --- Initial Load Logic ---
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                currentUserUid = user.uid;
-                userIdDisplay.textContent = `User ID: ${currentUserUid}`;
-                isAuthReady = true;
-                setupRatingsListener();
-            } else {
-                userIdDisplay.textContent = "User ID: Anonymous (Loading...)";
-                if (initialAuthToken) {
-                    try {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                        console.log("Signed in with custom token.");
-                    } catch (error) {
-                        console.error("Error signing in with custom token:", error);
-                        await signInAnonymously(auth);
-                        console.log("Signed in anonymously due to custom token error.");
-                    }
-                } else {
-                    await signInAnonymously(auth);
-                    console.log("Signed in anonymously.");
-                }
-            }
-        });
-
+        // --- Initial Load Logic (Simplified without Firebase auth/listeners) ---
         window.onload = () => {
             scaleDisplay.textContent = "Click 'Gimme a Scale!' to start!";
             bpmValueDisplay.textContent = bpmSlider.value; // Set initial BPM display
