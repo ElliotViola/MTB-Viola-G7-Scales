@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grade 7 Viola Scale Practice App</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js CDN for audio synthesis -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Light blue-gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 1rem; /* Rounded corners */
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            max-width: 700px; /* Slightly wider to accommodate the list better */
+            width: 100%;
+            text-align: center;
+        }
+        .scale-display {
+            min-height: 80px; /* Ensure enough space for text */
+        }
+        .greyed-out {
+            opacity: 0.5;
+            text-decoration: line-through;
+            color: #6b7280; /* Tailwind gray-500 */
+        }
+        .clickable-scale-item {
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .clickable-scale-item:hover {
+            background-color: #e2e8f0; /* Tailwind gray-200 */
+        }
+        /* Custom scrollbar for the scales list */
+        .scales-list-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .scales-list-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .scales-list-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1; /* Tailwind gray-300 */
+            border-radius: 10px;
+        }
+        .scales-list-container::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; /* Tailwind gray-400 */
+        }
+
+        /* Star rating styles */
+        .star-rating .star {
+            cursor: pointer;
+            font-size: 2.5rem; /* Larger stars */
+            color: #ccc; /* Default grey */
+            transition: color 0.2s ease-in-out, transform 0.1s ease-in-out;
+            display: inline-block; /* Allow horizontal alignment */
+            margin: 0 0.2rem; /* Space between stars */
+        }
+        .star-rating .star:hover {
+            transform: scale(1.1);
+        }
+        .star-rating .star.selected {
+            color: #facc15; /* Tailwind amber-400 */
+        }
+        .star-rating .star.hovered {
+            color: #facc15; /* Tailwind amber-400 */
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            padding: 2.5rem;
+            box-shadow: 0 20px 25px rgba(0, 0, 0, 0.25);
+            text-align: center;
+            max-width: 90%;
+            width: 500px; /* Wider for the list */
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="selection:bg-cyan-200">
+    <div class="container flex flex-col items-center justify-center p-6 sm:p-8 md:p-10">
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-6">Grade 7 Viola Scale Practice App</h1>
+        <p class="text-lg text-gray-600 mb-8">Click the button below to get a random scale or arpeggio to practice!</p>
+
+        <div id="scaleDisplay" class="scale-display text-4xl sm:text-5xl font-extrabold text-teal-600 mb-10 flex items-center justify-center min-h-[100px] text-center p-4 bg-teal-50 rounded-lg shadow-inner w-full break-words leading-tight">
+            <!-- Scale will be displayed here -->
+            Your next challenge awaits!
+        </div>
+
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10 w-full max-w-xs">
+            <button id="gimmeScaleButton" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-teal-300 focus:ring-opacity-75 text-xl sm:text-2xl w-full">
+                Gimme a Scale!
+            </button>
+            <button id="togglePracticeModeButton" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-6 rounded-full shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-purple-300 focus:ring-opacity-75 text-lg sm:text-xl w-full">
+                Toggle Practice Mode
+            </button>
+        </div>
+
+        <!-- BPM Slider -->
+        <div class="w-full max-w-md flex flex-col items-center justify-center mb-10">
+            <label for="bpmSlider" class="text-lg font-semibold text-gray-700 mb-2">
+                Playback Speed: <span id="bpmValueDisplay">50</span> BPM (crotchet)
+            </label>
+            <input type="range" id="bpmSlider" min="30" max="120" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+        </div>
+
+        <!-- Container for Demonstration Button and Star Rating -->
+        <div id="actionContainer" class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10 hidden">
+            <button id="demonstrationButton" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-full shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-blue-300 focus:ring-opacity-75 text-lg sm:text-xl">
+                Play Demo
+            </button>
+            <div id="starRatingContainer" class="star-rating">
+                <span class="star" data-value="1">&#9733;</span>
+                <span class="star" data-value="2">&#9733;</span>
+                <span class="star" data-value="3">&#9733;</span>
+                <span class="star" data-value="4">&#9733;</span>
+                <span class="star" data-value="5">&#9733;</span>
+                <p class="text-gray-500 text-sm mt-2">Rate how well you played (1=Hardest, 5=Easiest)</p>
+            </div>
+        </div>
+
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 mt-10 mb-4">All Scales & Arpeggios</h2>
+        <div id="allScalesList" class="scales-list-container grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 p-4 bg-gray-50 rounded-lg shadow-inner w-full max-h-60 overflow-y-auto">
+            <!-- Scale items will be dynamically inserted here by JavaScript -->
+        </div>
+        <p id="userIdDisplay" class="text-xs text-gray-400 mt-4">User ID: Loading...</p>
+    </div>
+
+    <!-- Congratulations Modal -->
+    <div id="congratulationsModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 class="text-3xl font-bold text-teal-600 mb-4">Congratulations!</h3>
+            <p class="text-xl text-gray-700 mb-6">Well done! You've completed a round of scales. Here's what to practice next!</p>
+            <h4 class="text-lg font-semibold text-gray-800 mb-2">Scales Ordered by Difficulty (Hardest to Easiest):</h4>
+            <div id="modalScalesList" class="text-left text-gray-700 max-h-40 overflow-y-auto mb-6 p-2 border border-gray-200 rounded-md">
+                <!-- Scales will be inserted here dynamically -->
+            </div>
+            <button id="closeModalButton" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-6 rounded-full shadow-md transition duration-300 ease-in-out">
+                Awesome!
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Global Variables (Provided by Canvas)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let currentUserUid = null;
+        let isAuthReady = false; // Flag to indicate if auth state has been determined
+
+        // Array of all MTB Grade 7 Viola Scales & Arpeggios from Memory (from the syllabus)
+        const allScales = [
+            "E major scale - 3 octaves",
+            "G harmonic minor scale - 3 octaves",
+            "E melodic minor scale - 3 octaves",
+            "E major arpeggio - 3 octaves",
+            "G minor arpeggio - 3 octaves",
+            "E minor arpeggio - 3 octaves",
+            "Chromatic Scale on D - 3 octaves",
+            "Dominant 7th in Eb - 2 octaves",
+            "Diminished 7th on D - 2 octaves"
+        ];
+
+        // This map will store an array of ratings for each scale
+        const scaleRatings = {};
+        allScales.forEach(scale => {
+            scaleRatings[scale] = [];
+        });
+
+        let availableScales = [...allScales]; // A copy to draw from, ensuring no repeats
+        let previousScale = null; // To ensure the same scale isn't picked twice in a row immediately
+        let currentScaleSelected = null; // The scale currently displayed for rating
+        let isFirstRandomRoundCompleted = false; // Flag to track if the first random round is done for sorting logic
+        let audioContextStarted = false; // Flag to ensure Tone.js context is started only once
+        let isPlayingDemo = false; // Flag to track if the demo is currently playing
+        let isPracticeMode = false; // New flag for practice mode
+
+        // UI Element References
+        const scaleDisplay = document.getElementById('scaleDisplay');
+        const gimmeScaleButton = document.getElementById('gimmeScaleButton');
+        const togglePracticeModeButton = document.getElementById('togglePracticeModeButton');
+        const bpmSlider = document.getElementById('bpmSlider'); // New slider element
+        const bpmValueDisplay = document.getElementById('bpmValueDisplay'); // New BPM display
+        const allScalesListContainer = document.getElementById('allScalesList');
+        const actionContainer = document.getElementById('actionContainer');
+        const demonstrationButton = document.getElementById('demonstrationButton');
+        const starRatingContainer = document.getElementById('starRatingContainer');
+        const stars = document.querySelectorAll('.star-rating .star');
+        const congratulationsModal = document.getElementById('congratulationsModal');
+        const closeModalButton = document.getElementById('closeModalButton');
+        const modalScalesList = document.getElementById('modalScalesList');
+        const userIdDisplay = document.getElementById('userIdDisplay');
+
+        // Tone.js Setup
+        const synth = new Tone.PolySynth(Tone.Synth, {
+            envelope: {
+                attack: 0.02,
+                decay: 0.8,
+                sustain: 0.1,
+                release: 0.5,
+            },
+            oscillator: {
+                type: "triangle"
+            }
+        }).toDestination();
+
+        Tone.Transport.bpm.value = bpmSlider.value; // Initialize BPM from slider value
+        let currentSequence = null;
+
+        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const scaleIntervals = {
+            'major': [0, 2, 4, 5, 7, 9, 11],
+            'harmonic minor': [0, 2, 3, 5, 7, 8, 11],
+            'melodic minor': [0, 2, 3, 5, 7, 9, 11], // Ascending
+            'chromatic': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        };
+         // Melodic minor descending intervals are usually different, but for simplicity in this app,
+         // we'll derive it from the ascending notes then reverse.
+         // True melodic minor descending is natural minor (W-H-W-W-H-W-W) from scale degree 6.
+         // However, the current note generation for scales just reverses the ascending array (excluding top),
+         // which implies the same intervals downwards. For now, this is acceptable given the simple Tone.js approach.
+
+
+        /**
+         * Parses the scale name string to extract root, type, and octaves.
+         * @param {string} scaleName - The full scale name string.
+         * @returns {object|null} An object with root, type, and octaves, or null if parsing fails.
+         */
+        function parseScaleName(scaleName) {
+            const lowerCaseName = scaleName.toLowerCase();
+            const parts = lowerCaseName.split(' ');
+
+            let root = '';
+            let type = '';
+            let octaves = 1;
+
+            if (lowerCaseName.includes("dominant 7th in")) {
+                const inIndex = parts.indexOf('in');
+                if (inIndex !== -1 && parts.length > inIndex + 1) {
+                    root = parts[inIndex + 1].toUpperCase(); // This 'root' is the KEY'S tonic (e.g., G for "in G", Eb for "in Eb")
+                } else {
+                    console.error(`Could not parse key tonic for dominant 7th: ${scaleName}`);
+                    return null;
+                }
+                type = 'dominant 7th';
+            } else if (lowerCaseName.includes("diminished 7th on")) {
+                const onIndex = parts.indexOf('on');
+                if (onIndex !== -1 && parts.length > onIndex + 1) {
+                    root = parts[onIndex + 1].toUpperCase(); // This 'root' is the diminished 7th's root (e.g., D for "on D")
+                } else {
+                    console.error(`Could not parse root for diminished 7th: ${scaleName}`);
+                    return null;
+                }
+                type = 'diminished 7th';
+            }
+            else {
+                root = parts[0].toUpperCase();
+                if (root.length > 1 && root[1] === '#') {
+                    root = root[0] + '#';
+                }
+
+                if (lowerCaseName.includes("major scale")) type = 'major';
+                else if (lowerCaseName.includes("harmonic minor scale")) type = 'harmonic minor';
+                else if (lowerCaseName.includes("melodic minor scale")) type = 'melodic minor'; // Added melodic minor
+                else if (lowerCaseName.includes("chromatic scale")) type = 'chromatic';
+                else if (lowerCaseName.includes("arpeggio")) type = 'arpeggio';
+                else return null;
+            }
+
+            const octaveMatch = lowerCaseName.match(/(\d)\s*octaves?/);
+            if (octaveMatch && octaveMatch[1]) {
+                octaves = parseInt(octaveMatch[1]);
+            }
+
+            return { root, type, octaves, originalString: lowerCaseName };
+        }
+
+        /**
+         * Generates an array of Tone.js note strings (e.g., "C4", "G#5") for a given scale,
+         * including both ascending and descending notes for scales and arpeggios.
+         * @param {string} scaleName - The name of the scale (e.g., "B major scale - 2 octaves").
+         * @returns {string[]} An array of note strings.
+         */
+        function getScaleNotes(scaleName) {
+            const parsed = parseScaleName(scaleName);
+            if (!parsed) return [];
+
+            const { root, type, octaves, originalString } = parsed;
+            let ascendingNotes = [];
+            let fullScaleNotes = [];
+            const baseOctave = 3; // Starting octave for viola (lowest open string is C3)
+
+            let actualRootNoteForGeneration = root; // Default for scales/arpeggios (e.g., E for E major scale)
+
+            // For dominant 7th, the 'root' from parseScaleName is the key's tonic (e.g., Eb).
+            // We need the dominant of that key for the arpeggio's root (e.g., Bb for Eb).
+            let keyTonicIndex = noteNames.indexOf(root); // Index of the key's tonic
+
+            if (type === 'dominant 7th') {
+                if (keyTonicIndex === -1) {
+                    console.error(`Invalid key tonic for dominant 7th: ${root}`);
+                    return [];
+                }
+                // Calculate the dominant note (7 semitones above the key tonic)
+                const dominantIndex = (keyTonicIndex + 7) % 12;
+                actualRootNoteForGeneration = noteNames[dominantIndex]; // e.g., Bb for Eb
+            } else if (type === 'diminished 7th') {
+                 // For diminished 7th, the 'root' from parseScaleName is already the arpeggio's root (e.g., D).
+                 actualRootNoteForGeneration = root;
+            }
+
+            const arpeggioOrScaleRootIndex = noteNames.indexOf(actualRootNoteForGeneration);
+            if (arpeggioOrScaleRootIndex === -1) {
+                console.error(`Invalid root note for generation: ${actualRootNoteForGeneration}`);
+                return [];
+            }
+
+
+            if (type === 'major' || type === 'harmonic minor' || type === 'melodic minor' || type === 'chromatic') {
+                const intervals = scaleIntervals[type];
+                for (let o = 0; o < octaves; o++) {
+                    for (let i = 0; i < intervals.length; i++) {
+                        const midiNote = (arpeggioOrScaleRootIndex + intervals[i]) + (o * 12) + (baseOctave * 12);
+                        ascendingNotes.push(Tone.Midi(midiNote).toNote());
+                    }
+                }
+                const topOctaveRootMidi = (arpeggioOrScaleRootIndex) + (octaves * 12) + (baseOctave * 12);
+                ascendingNotes.push(Tone.Midi(topOctaveRootMidi).toNote());
+
+                fullScaleNotes = [...ascendingNotes];
+                for (let i = ascendingNotes.length - 2; i >= 0; i--) {
+                    fullScaleNotes.push(ascendingNotes[i]);
+                }
+
+            } else if (type === 'arpeggio') {
+                let arpeggioIntervals = originalString.includes("major arpeggio") ? [0, 4, 7] : [0, 3, 7];
+
+                for (let o = 0; o < octaves; o++) {
+                    for (let i = 0; i < arpeggioIntervals.length; i++) {
+                        const midiNote = (arpeggioOrScaleRootIndex + arpeggioIntervals[i]) + (o * 12) + (baseOctave * 12);
+                        ascendingNotes.push(Tone.Midi(midiNote).toNote());
+                    }
+                }
+                const topOctaveRootMidi = (arpeggioOrScaleRootIndex) + (octaves * 12) + (baseOctave * 12);
+                ascendingNotes.push(Tone.Midi(topOctaveRootMidi).toNote());
+
+                fullScaleNotes = [...ascendingNotes];
+                for (let i = ascendingNotes.length - 2; i >= 0; i--) {
+                    fullScaleNotes.push(ascendingNotes[i]);
+                }
+
+            } else if (type === 'dominant 7th') {
+                // For "Dominant 7th in Eb", the dominant is Bb.
+                // Arpeggio pattern for dominant 7th: Root, M3, P5, m7
+                const dominant7thIntervals = [0, 4, 7, 10];
+
+                // Build the ascending part of the dominant 7th arpeggio (e.g., Bb3, D4, F4, Ab4, Bb4, D5, F5, Ab5)
+                for (let o = 0; o < octaves; o++) { // octaves is 2
+                    for (let i = 0; i < dominant7thIntervals.length; i++) {
+                        const midiNote = arpeggioOrScaleRootIndex + dominant7thIntervals[i] + (baseOctave * 12) + (o * 12);
+                        ascendingNotes.push(Tone.Midi(midiNote).toNote());
+                    }
+                }
+                // Add the highest root of the dominant arpeggio to complete the ascending passage (Bb5 for Bb7, 2 octaves)
+                ascendingNotes.push(Tone.Midi(arpeggioOrScaleRootIndex + (baseOctave * 12) + (octaves * 12)).toNote());
+
+                fullScaleNotes = [...ascendingNotes];
+                // Descending part: exclude the highest pivot note
+                for (let i = ascendingNotes.length - 2; i >= 0; i--) {
+                    fullScaleNotes.push(ascendingNotes[i]);
+                }
+
+                // Add the resolving tonic note (Eb) - this is the original key's tonic, not the dominant's root
+                const resolvingTonicMidi = keyTonicIndex + (baseOctave * 12); // Eb3
+                fullScaleNotes.push(Tone.Midi(resolvingTonicMidi).toNote());
+
+            } else if (type === 'diminished 7th') {
+                // Diminished 7th on D (D, F, Ab, B)
+                // Arpeggio pattern for diminished 7th: Root, m3, d5, d7 (same as m3, m3, m3)
+                const dim7Intervals = [0, 3, 6, 9];
+
+                // Build the ascending part of the diminished 7th arpeggio
+                for (let o = 0; o < octaves; o++) { // octaves is 2
+                    for (let i = 0; i < dim7Intervals.length; i++) {
+                        const midiNote = arpeggioOrScaleRootIndex + dim7Intervals[i] + (baseOctave * 12) + (o * 12);
+                        ascendingNotes.push(Tone.Midi(midiNote).toNote());
+                    }
+                }
+                // Add the highest root of the diminished arpeggio to complete the ascending passage (D5 for Ddim7, 2 octaves)
+                ascendingNotes.push(Tone.Midi(arpeggioOrScaleRootIndex + (baseOctave * 12) + (octaves * 12)).toNote());
+
+
+                fullScaleNotes = [...ascendingNotes];
+                // Descending part: exclude the highest pivot note
+                for (let i = ascendingNotes.length - 2; i >= 0; i--) {
+                    fullScaleNotes.push(ascendingNotes[i]);
+                }
+            }
+
+            return fullScaleNotes;
+        }
+
+        /**
+         * Toggles the demonstration playback. If playing, stops it. If not, starts it.
+         */
+        function toggleDemonstration() {
+            if (isPlayingDemo) {
+                if (currentSequence) {
+                    currentSequence.stop();
+                    currentSequence.dispose();
+                    currentSequence = null;
+                }
+                Tone.Transport.stop();
+                isPlayingDemo = false;
+                demonstrationButton.textContent = "Play Demo";
+                demonstrationButton.disabled = false;
+                console.log("Demo stopped.");
+            } else {
+                if (currentScaleSelected) {
+                    const notesToPlay = getScaleNotes(currentScaleSelected);
+                    if (notesToPlay.length === 0) {
+                        console.warn("No notes to play for demonstration.");
+                        return;
+                    }
+
+                    console.log(`Playing demo for: ${currentScaleSelected}`, notesToPlay);
+                    demonstrationButton.textContent = "Stop";
+                    demonstrationButton.disabled = false;
+
+                    const noteDuration = "4n";
+                    currentSequence = new Tone.Sequence((time, note) => {
+                        synth.triggerAttackRelease(note, noteDuration, time);
+                    }, notesToPlay, noteDuration);
+
+                    currentSequence.loop = false;
+                    currentSequence.start(0);
+                    Tone.Transport.start();
+                    isPlayingDemo = true;
+
+                    const totalDurationInSeconds = Tone.Time(noteDuration).toSeconds() * notesToPlay.length;
+
+                    Tone.Transport.scheduleOnce(() => {
+                        if (isPlayingDemo) {
+                            toggleDemonstration();
+                        }
+                    }, Math.max(Tone.Time("32n").toSeconds(), totalDurationInSeconds));
+                }
+            }
+        }
+
+        /**
+         * Calculates the average rating for a given scale.
+         * Returns a default value (3) if no ratings exist, to avoid breaking sort.
+         * @param {string} scaleName - The name of the scale.
+         * @returns {number} The average rating (1-5) or 3 if no ratings.
+         */
+        function getAverageRating(scaleName) {
+            const ratings = scaleRatings[scaleName];
+            if (!ratings || ratings.length === 0) {
+                return 3;
+            }
+            const sum = ratings.reduce((acc, rating) => acc + rating, 0);
+            return sum / ratings.length;
+        }
+
+        /**
+         * Saves the current scale ratings to Firestore.
+         */
+        async function saveRatingsToFirestore() {
+            if (currentUserUid && isAuthReady) {
+                try {
+                    const docRef = doc(collection(db, `artifacts/${appId}/users/${currentUserUid}/scaleProgress`), 'ratings');
+                    const dataToSave = {};
+                    for (const scaleName in scaleRatings) {
+                        if (scaleRatings.hasOwnProperty(scaleName)) {
+                            dataToSave[scaleName] = scaleRatings[scaleName].length > 0 ? scaleRatings[scaleName] : [];
+                        }
+                    }
+                    await setDoc(docRef, dataToSave, { merge: true });
+                    console.log("Ratings saved to Firestore for user:", currentUserUid);
+                } catch (e) {
+                    console.error("Error saving ratings:", e);
+                }
+            } else {
+                console.warn("Cannot save ratings: User not authenticated or auth not ready.");
+            }
+        }
+
+        /**
+         * Sets up real-time listener for scale ratings from Firestore.
+         */
+        function setupRatingsListener() {
+            if (currentUserUid && isAuthReady) {
+                const docRef = doc(collection(db, `artifacts/${appId}/users/${currentUserUid}/scaleProgress`), 'ratings');
+                onSnapshot(docRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        console.log("Ratings loaded/updated from Firestore:", data);
+                        for (const scaleName of allScales) {
+                            scaleRatings[scaleName] = data[scaleName] || [];
+                        }
+                        renderScalesList();
+                    } else {
+                        console.log("No ratings found for user. Initializing empty ratings.");
+                        allScales.forEach(scale => {
+                            scaleRatings[scale] = [];
+                        });
+                        renderScalesList();
+                    }
+                }, (error) => {
+                    console.error("Error listening to ratings:", error);
+                });
+            } else {
+                console.warn("Cannot set up ratings listener: User not authenticated or auth not ready.");
+            }
+        }
+
+
+        /**
+         * Renders (or re-renders) the list of all scales in the UI.
+         * Scales that are no longer in the 'availableScales' array are greyed out.
+         * Also displays average rating next to each scale and makes them clickable in practice mode.
+         */
+        function renderScalesList() {
+            allScalesListContainer.innerHTML = '';
+
+            allScales.forEach(scale => {
+                const scaleItem = document.createElement('div');
+                const avgRating = getAverageRating(scale);
+                const ratingText = scaleRatings[scale].length > 0 ? `(Avg: ${avgRating.toFixed(1)}/5)` : '';
+
+                scaleItem.textContent = `${scale} ${ratingText}`;
+                scaleItem.classList.add(
+                    'p-2', 'bg-white', 'rounded-md', 'shadow-sm',
+                    'text-gray-700', 'text-left', 'text-base', 'sm:text-lg',
+                    'font-medium', 'transition-all', 'duration-200',
+                    'flex', 'justify-between', 'items-center'
+                );
+
+                const isUsedInCurrentRound = !availableScales.includes(scale) && !isPracticeMode;
+                if (isUsedInCurrentRound) {
+                    scaleItem.classList.add('greyed-out');
+                } else if (isPracticeMode) {
+                    scaleItem.classList.add('clickable-scale-item');
+                    scaleItem.classList.remove('greyed-out');
+                    scaleItem.onclick = () => selectPracticeScale(scale);
+                } else {
+                    scaleItem.classList.remove('clickable-scale-item');
+                    scaleItem.onclick = null;
+                }
+
+                allScalesListContainer.appendChild(scaleItem);
+            });
+        }
+
+        /**
+         * Shows the congratulations modal with scales sorted by difficulty.
+         */
+        function showCongratulationsPopup() {
+            modalScalesList.innerHTML = '';
+
+            const sortedScales = [...allScales].sort((a, b) => {
+                const ratingA = getAverageRating(a);
+                const ratingB = getAverageRating(b);
+                return ratingA - ratingB;
+            });
+
+            const ul = document.createElement('ul');
+            ul.classList.add('list-disc', 'list-inside', 'space-y-1');
+
+            sortedScales.forEach(scale => {
+                const li = document.createElement('li');
+                const avgRating = getAverageRating(scale);
+                const ratingText = scaleRatings[scale].length > 0 ? `(Avg: ${avgRating.toFixed(1)}/5)` : '(No ratings yet)';
+                li.textContent = `${scale} ${ratingText}`;
+                ul.appendChild(li);
+            });
+            modalScalesList.appendChild(ul);
+
+            congratulationsModal.classList.remove('hidden');
+        }
+
+        /**
+         * Hides the congratulations modal and resets the game state for a new random round.
+         */
+        function hideCongratulationsPopup() {
+            congratulationsModal.classList.add('hidden');
+            isFirstRandomRoundCompleted = true;
+            resetRandomRound();
+        }
+
+        /**
+         * Resets the available scales for a new random round, applying sorting if first random round is complete.
+         */
+        function resetRandomRound() {
+            if (isFirstRandomRoundCompleted) {
+                availableScales = [...allScales].sort((a, b) => {
+                    const ratingA = getAverageRating(a);
+                    const ratingB = getAverageRating(b);
+                    return ratingA - ratingB;
+                });
+                console.log("Scales sorted for next random round based on ratings:", availableScales);
+            } else {
+                availableScales = [...allScales];
+            }
+            renderScalesList();
+        }
+
+        /**
+         * Selects a random scale from the availableScales array for random mode.
+         * @returns {string|null} The chosen scale name, or null if all scales are done.
+         */
+        function selectRandomScale() {
+            if (availableScales.length === 0) {
+                showCongratulationsPopup();
+                return null;
+            }
+
+            let randomIndex;
+            let chosenScale;
+
+            do {
+                randomIndex = Math.floor(Math.random() * availableScales.length);
+                chosenScale = availableScales[randomIndex];
+            } while (chosenScale === previousScale && availableScales.length > 1);
+
+            availableScales.splice(randomIndex, 1);
+            previousScale = chosenScale;
+            return chosenScale;
+        }
+
+        /**
+         * Handles selecting a scale when in practice mode.
+         * @param {string} scaleName - The name of the scale clicked.
+         */
+        function selectPracticeScale(scaleName) {
+            if (isPlayingDemo) {
+                toggleDemonstration();
+            }
+
+            scaleDisplay.textContent = scaleName;
+            currentScaleSelected = scaleName;
+
+            gimmeScaleButton.classList.add('hidden');
+            actionContainer.classList.remove('hidden');
+            demonstrationButton.textContent = "Play Demo";
+            stars.forEach(star => star.classList.remove('selected'));
+
+            scaleDisplay.classList.remove('animate-pulse');
+            void scaleDisplay.offsetWidth;
+            scaleDisplay.classList.add('animate-pulse');
+            setTimeout(() => {
+                scaleDisplay.classList.remove('animate-pulse');
+            }, 500);
+        }
+
+        // --- Event Listeners ---
+
+        gimmeScaleButton.addEventListener('click', () => {
+            if (!audioContextStarted) {
+                Tone.start();
+                audioContextStarted = true;
+                console.log("Audio context started!");
+            }
+
+            if (isPlayingDemo) {
+                toggleDemonstration();
+            }
+
+            const scale = selectRandomScale();
+            if (scale) {
+                scaleDisplay.textContent = scale;
+                currentScaleSelected = scale;
+
+                gimmeScaleButton.classList.add('hidden');
+                actionContainer.classList.remove('hidden');
+                demonstrationButton.textContent = "Play Demo";
+                stars.forEach(star => star.classList.remove('selected'));
+
+                scaleDisplay.classList.remove('animate-pulse');
+                void scaleDisplay.offsetWidth;
+                scaleDisplay.classList.add('animate-pulse');
+                setTimeout(() => {
+                    scaleDisplay.classList.remove('animate-pulse');
+                }, 500);
+            }
+        });
+
+        togglePracticeModeButton.addEventListener('click', () => {
+            isPracticeMode = !isPracticeMode;
+            if (isPracticeMode) {
+                gimmeScaleButton.classList.add('hidden');
+                actionContainer.classList.add('hidden');
+                scaleDisplay.textContent = "Select a scale from the list below!";
+            } else {
+                gimmeScaleButton.classList.remove('hidden');
+                scaleDisplay.textContent = "Click 'Gimme a Scale!' to start!";
+            }
+            if (isPlayingDemo) {
+                toggleDemonstration();
+            }
+            renderScalesList();
+        });
+
+        demonstrationButton.addEventListener('click', toggleDemonstration);
+
+        // Slider event listener to update BPM
+        bpmSlider.addEventListener('input', () => {
+            Tone.Transport.bpm.value = bpmSlider.value;
+            bpmValueDisplay.textContent = bpmSlider.value;
+            console.log("BPM set to:", bpmSlider.value);
+        });
+
+
+        stars.forEach(star => {
+            star.addEventListener('mouseover', () => {
+                const value = parseInt(star.dataset.value);
+                stars.forEach((s, i) => {
+                    if (i < value) {
+                        s.classList.add('hovered');
+                    } else {
+                        s.classList.remove('hovered');
+                    }
+                });
+            });
+
+            star.addEventListener('mouseout', () => {
+                stars.forEach(s => s.classList.remove('hovered'));
+            });
+
+            star.addEventListener('click', () => {
+                const rating = parseInt(star.dataset.value);
+
+                stars.forEach((s, i) => {
+                    if (i < rating) {
+                        s.classList.add('selected');
+                    } else {
+                        s.classList.remove('selected');
+                    }
+                });
+
+                if (currentScaleSelected && scaleRatings[currentScaleSelected]) {
+                    scaleRatings[currentScaleSelected].push(rating);
+                    console.log(`Rated "${currentScaleSelected}" as ${rating} stars. All ratings:`, scaleRatings);
+                    saveRatingsToFirestore();
+                }
+
+                renderScalesList();
+
+                if (isPlayingDemo) {
+                    toggleDemonstration();
+                }
+
+                setTimeout(() => {
+                    actionContainer.classList.add('hidden');
+                    if (!isPracticeMode) {
+                        gimmeScaleButton.classList.remove('hidden');
+                    }
+                }, 700);
+            });
+        });
+
+        closeModalButton.addEventListener('click', hideCongratulationsPopup);
+
+        // --- Initial Load Logic ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUserUid = user.uid;
+                userIdDisplay.textContent = `User ID: ${currentUserUid}`;
+                isAuthReady = true;
+                setupRatingsListener();
+            } else {
+                userIdDisplay.textContent = "User ID: Anonymous (Loading...)";
+                if (initialAuthToken) {
+                    try {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                        console.log("Signed in with custom token.");
+                    } catch (error) {
+                        console.error("Error signing in with custom token:", error);
+                        await signInAnonymously(auth);
+                        console.log("Signed in anonymously due to custom token error.");
+                    }
+                } else {
+                    await signInAnonymously(auth);
+                    console.log("Signed in anonymously.");
+                }
+            }
+        });
+
+        window.onload = () => {
+            scaleDisplay.textContent = "Click 'Gimme a Scale!' to start!";
+            bpmValueDisplay.textContent = bpmSlider.value; // Set initial BPM display
+            renderScalesList();
+        };
+    </script>
+</body>
+</html>
