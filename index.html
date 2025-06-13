@@ -420,65 +420,83 @@
          * Toggles the demonstration playback. If playing, stops it. If not, starts it.
          */
         async function toggleDemonstration() { // Made async to await Tone.start()
-            console.log("toggleDemonstration called. AudioContext state:", Tone.context.state);
+            console.log("toggleDemonstration called. Initial AudioContext state:", Tone.context.state);
 
-            // Ensure audio context is started/resumed on first user interaction with this button
+            // Attempt to start/resume AudioContext on every click of the demo button
+            // This is the most direct user gesture for audio playback.
             if (Tone.context.state !== 'running') {
                 try {
-                    console.log("Attempting to start/resume AudioContext...");
-                    await Tone.start(); // Await the promise
-                    audioContextStarted = true; // Mark as started
-                    console.log("Audio context started/resumed successfully. State:", Tone.context.state);
+                    console.log("Attempting to start/resume AudioContext from toggleDemonstration...");
+                    await Tone.start(); // This will resume if suspended, or start if closed
+                    audioContextStarted = true; // Mark as started once successful
+                    console.log("AudioContext state after attempt:", Tone.context.state);
+                    if (Tone.context.state !== 'running') {
+                        throw new Error("AudioContext failed to transition to 'running' state.");
+                    }
                 } catch (e) {
-                    console.error("Error starting/resuming audio context:", e);
-                    // Display a user-friendly message if audio context fails to start
-                    scaleDisplay.textContent = "Audio blocked! Please ensure sound is allowed for this site.";
-                    return; // Stop function execution
+                    console.error("Error starting/resuming AudioContext:", e);
+                    scaleDisplay.textContent = "Error: Audio blocked! Click here or refresh and allow sound.";
+                    scaleDisplay.classList.add('text-red-600'); // Make error message red
+                    return; // Crucially, exit if audio context isn't running
                 }
             }
 
-            if (isPlayingDemo) {
-                console.log("Stopping current demo.");
-                if (currentSequence) {
-                    currentSequence.stop();
-                    currentSequence.dispose();
-                    currentSequence = null;
-                }
-                Tone.Transport.stop();
-                isPlayingDemo = false;
-                demonstrationButton.textContent = "Play Demo";
-                demonstrationButton.disabled = false;
-            } else {
-                if (currentScaleSelected) {
-                    const notesToPlay = getScaleNotes(currentScaleSelected);
-                    if (notesToPlay.length === 0) {
-                        console.warn("No notes to play for demonstration.");
-                        return;
+            // Only proceed with playing/stopping if AudioContext is truly running
+            if (Tone.context.state === 'running') {
+                if (isPlayingDemo) {
+                    console.log("Stopping current demo.");
+                    if (currentSequence) {
+                        currentSequence.stop();
+                        currentSequence.dispose();
+                        currentSequence = null;
                     }
-
-                    console.log(`Playing demo for: ${currentScaleSelected}`, notesToPlay);
-                    demonstrationButton.textContent = "Stop";
+                    Tone.Transport.stop();
+                    isPlayingDemo = false;
+                    demonstrationButton.textContent = "Play Demo";
                     demonstrationButton.disabled = false;
-
-                    const noteDuration = "4n";
-                    currentSequence = new Tone.Sequence((time, note) => {
-                        synth.triggerAttackRelease(note, noteDuration, time);
-                    }, notesToPlay, noteDuration);
-
-                    currentSequence.loop = false;
-                    currentSequence.start(0);
-                    Tone.Transport.start();
-                    isPlayingDemo = true;
-
-                    const totalDurationInSeconds = Tone.Time(noteDuration).toSeconds() * notesToPlay.length;
-
-                    Tone.Transport.scheduleOnce(() => {
-                        console.log("Demo sequence finished naturally.");
-                        if (isPlayingDemo) { // Check if it hasn't been stopped manually already
-                            toggleDemonstration(); // Call toggle to reset state and button text
+                    scaleDisplay.classList.remove('text-red-600'); // Clear error color
+                } else {
+                    if (currentScaleSelected) {
+                        scaleDisplay.classList.remove('text-red-600'); // Clear error color if previously set
+                        console.log("Preparing to play demo.");
+                        const notesToPlay = getScaleNotes(currentScaleSelected);
+                        if (notesToPlay.length === 0) {
+                            console.warn("No notes to play for demonstration.");
+                            // If no notes, maybe display a message or revert button state
+                            scaleDisplay.textContent = "No notes generated for this scale.";
+                            return;
                         }
-                    }, Math.max(Tone.Time("32n").toSeconds(), totalDurationInSeconds));
+
+                        console.log(`Playing demo for: ${currentScaleSelected}`, notesToPlay);
+                        demonstrationButton.textContent = "Stop";
+                        demonstrationButton.disabled = false;
+
+                        const noteDuration = "4n";
+                        currentSequence = new Tone.Sequence((time, note) => {
+                            synth.triggerAttackRelease(note, noteDuration, time);
+                        }, notesToPlay, noteDuration);
+
+                        currentSequence.loop = false;
+                        currentSequence.start(0);
+                        Tone.Transport.start();
+                        isPlayingDemo = true;
+
+                        const totalDurationInSeconds = Tone.Time(noteDuration).toSeconds() * notesToPlay.length;
+
+                        Tone.Transport.scheduleOnce(() => {
+                            console.log("Demo sequence finished naturally.");
+                            if (isPlayingDemo) {
+                                toggleDemonstration();
+                            }
+                        }, Math.max(Tone.Time("32n").toSeconds(), totalDurationInSeconds));
+                    } else {
+                        scaleDisplay.textContent = "Please select a scale first!";
+                    }
                 }
+            } else {
+                console.warn("AudioContext is not running, cannot play demo.");
+                scaleDisplay.textContent = "Audio still blocked. Ensure site sound is enabled.";
+                scaleDisplay.classList.add('text-red-600');
             }
         }
 
@@ -638,7 +656,7 @@
         // --- Event Listeners ---
 
         gimmeScaleButton.addEventListener('click', () => {
-            console.log("Gimme Scale button clicked!"); // Added log
+            console.log("Gimme Scale button clicked!");
             if (isPlayingDemo) {
                 toggleDemonstration();
             }
@@ -662,8 +680,27 @@
             }
         });
 
-        togglePracticeModeButton.addEventListener('click', () => {
-            console.log("Toggle Practice Mode button clicked!"); // Added log
+        togglePracticeModeButton.addEventListener('click', async () => {
+            console.log("Toggle Practice Mode button clicked!");
+            if (isPlayingDemo) {
+                toggleDemonstration();
+            }
+
+            // Attempt to start audio context here too, as this is a user gesture
+            if (Tone.context.state !== 'running') {
+                try {
+                    console.log("Attempting to start/resume AudioContext from Toggle Practice Mode...");
+                    await Tone.start();
+                    audioContextStarted = true;
+                    console.log("AudioContext state after Toggle Practice Mode attempt:", Tone.context.state);
+                } catch (e) {
+                    console.error("Error starting/resuming AudioContext from Toggle Practice Mode:", e);
+                    scaleDisplay.textContent = "Audio blocked! Please ensure sound is allowed for this site.";
+                    scaleDisplay.classList.add('text-red-600');
+                    // Do not return here, as the mode should still toggle.
+                }
+            }
+
             isPracticeMode = !isPracticeMode;
             if (isPracticeMode) {
                 gimmeScaleButton.classList.add('hidden');
@@ -672,9 +709,6 @@
             } else {
                 gimmeScaleButton.classList.remove('hidden');
                 scaleDisplay.textContent = "Click 'Gimme a Scale!' to start!";
-            }
-            if (isPlayingDemo) {
-                toggleDemonstration();
             }
             renderScalesList();
         });
