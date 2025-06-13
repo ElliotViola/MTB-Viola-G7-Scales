@@ -227,7 +227,7 @@
                 "C harmonic minor scale - 2 octaves",
                 "F harmonic minor scale - 2 octaves",
                 "A chromatic scale - 1 octave",
-                "Dominant 7th in G", // Assumed 1 octave or specific voicing
+                "Dominant 7th in G",
                 "B major arpeggio - 2 octaves",
                 "E major arpeggio - 2 octaves",
                 "C minor arpeggio - 2 octaves",
@@ -257,7 +257,7 @@
                 "Dominant 7th in F - 2 octaves",
                 "Diminished 7th on Bb - 2 octaves"
             ],
-            'Grade 7': [ // Current Viola Grade 7 scales
+            'Grade 7': [ // Updated Viola Grade 7 scales with double stops
                 "E major scale - 3 octaves",
                 "G harmonic minor scale - 3 octaves",
                 "E melodic minor scale - 3 octaves",
@@ -266,7 +266,9 @@
                 "E minor arpeggio - 3 octaves",
                 "Chromatic Scale on D - 3 octaves",
                 "Dominant 7th in Eb - 2 octaves",
-                "Diminished 7th on D - 2 octaves"
+                "Diminished 7th on D - 2 octaves",
+                "C major scale in 6ths - 2 octaves", // New double stop scale
+                "E Major Tetrachord in octaves" // New double stop scale
             ],
             'Grade 8': [
                 "F# major scale - 3 octaves",
@@ -315,10 +317,10 @@
         // Tone.js Setup
         const synth = new Tone.PolySynth(Tone.Synth, {
             envelope: {
-                attack: 0.02,
-                decay: 0.8,
-                sustain: 0.1,
-                release: 0.5,
+                attack: 0.02,   // Quick attack for immediate sound
+                decay: 0.3,     // Moderate decay to the sustain level
+                sustain: 0.1,   // Hold sound at 10% volume after decay
+                release: 0.3,   // Fade out over 0.3 seconds after the note ends
             },
             oscillator: {
                 type: "triangle"
@@ -385,6 +387,13 @@
                     return null;
                 }
                 type = 'diminished 7th';
+            } else if (lowerCaseName.includes("scale in 6ths")) {
+                root = parts[0].toUpperCase();
+                type = 'scale in 6ths';
+            } else if (lowerCaseName.includes("tetrachord in octaves")) {
+                root = parts[0].toUpperCase();
+                type = 'tetrachord in octaves';
+                octaves = 1; // Tetrachord specific logic handles its length
             }
             else {
                 root = parts[0].toUpperCase();
@@ -407,10 +416,9 @@
         }
 
         /**
-         * Generates an array of Tone.js note strings (e.g., "C4", "G#5") for a given scale,
-         * including both ascending and descending notes for scales and arpeggios.
-         * @param {string} scaleName - The name of the scale (e.g., "E major scale - 3 octaves").
-         * @returns {string[]} An array of note strings.
+         * Generates an array of Tone.js note strings (e.g., "C4", "G#5") or arrays of note strings (for chords/double stops).
+         * @param {string} scaleName - The name of the scale.
+         * @returns {Array<string|string[]>} An array of note strings or arrays of note strings.
          */
         function getScaleNotes(scaleName) {
             const parsed = parseScaleName(scaleName);
@@ -419,7 +427,7 @@
             const { root, type, octaves, originalString } = parsed;
             let ascendingNotes = [];
             let fullScaleNotes = [];
-            const baseOctave = 3; // Starting octave for viola (lowest open string is C3)
+            const baseOctave = 3; // Starting octave for viola (C3 is lowest open string)
 
             let arpeggioOrScaleRootIndex;
             let keyTonicIndex = getNoteIndex(root);
@@ -441,8 +449,7 @@
                 return [];
             }
 
-
-            if (type === 'major' || type === 'harmonic minor' || type === 'melodic minor' || type === 'chromatic') {
+            if (type === 'major' || type === 'harmonic minor' || type === 'melodic minor') {
                 const intervals = scaleIntervals[type];
                 for (let o = 0; o < octaves; o++) {
                     for (let i = 0; i < intervals.length; i++) {
@@ -454,6 +461,23 @@
                 ascendingNotes.push(Tone.Midi(topOctaveRootMidi).toNote());
 
                 fullScaleNotes = [...ascendingNotes];
+                for (let i = ascendingNotes.length - 2; i >= 0; i--) {
+                    fullScaleNotes.push(ascendingNotes[i]);
+                }
+
+            } else if (type === 'chromatic') {
+                const startMidi = arpeggioOrScaleRootIndex + (baseOctave * 12);
+                // Ensure endMidi correctly spans the octaves from the starting note.
+                // For '3 octaves', it means (root) to (root + 3 full octaves).
+                // A 3-octave chromatic scale from D3 would go up to D6.
+                const endMidi = startMidi + (octaves * 12);
+
+                for (let midi = startMidi; midi <= endMidi; midi++) {
+                    ascendingNotes.push(Tone.Midi(midi).toNote());
+                }
+
+                fullScaleNotes = [...ascendingNotes];
+                // Descending: From the second highest note down to the starting note (inclusive of start)
                 for (let i = ascendingNotes.length - 2; i >= 0; i--) {
                     fullScaleNotes.push(ascendingNotes[i]);
                 }
@@ -476,7 +500,7 @@
                 }
 
             } else if (type === 'dominant 7th') {
-                const dominant7thIntervals = [0, 4, 7, 10];
+                const dominant7thIntervals = [0, 4, 7, 10]; // Root, M3, P5, m7
 
                 let currentArpeggioRootMidi = arpeggioOrScaleRootIndex + (baseOctave * 12);
 
@@ -498,7 +522,7 @@
                 fullScaleNotes.push(Tone.Midi(resolvingTonicMidi).toNote());
 
             } else if (type === 'diminished 7th') {
-                const dim7Intervals = [0, 3, 6, 9];
+                const dim7Intervals = [0, 3, 6, 9]; // Root, m3, d5, d7
 
                 let currentArpeggioRootMidi = arpeggioOrScaleRootIndex + (baseOctave * 12);
 
@@ -513,6 +537,74 @@
 
 
                 fullScaleNotes = [...ascendingNotes];
+                for (let i = ascendingNotes.length - 2; i >= 0; i--) {
+                    fullScaleNotes.push(ascendingNotes[i]);
+                }
+            } else if (type === 'scale in 6ths') {
+                // For "C major scale in 6ths - 2 octaves"
+                // Upper voice is C major scale, lower voice is a diatonic 6th below it.
+                const majorScaleIntervals = scaleIntervals['major']; // [0, 2, 4, 5, 7, 9, 11]
+
+                // The correct semitone differences for diatonic 6ths *below* notes of C Major (upper voice):
+                const semitonesToDiatonicSixthBelow = {
+                    'C': 8,  // C to E (e.g., C4 to E3) - m6
+                    'D': 9,  // D to F (e.g., D4 to F3) - m6
+                    'E': 9,  // E to G (e.g., E4 to G3) - m6
+                    'F': 8,  // F to A (e.g., F4 to A3) - M6
+                    'G': 8,  // G to B (e.g., G4 to B3) - M6
+                    'A': 9,  // A to C (e.g., A4 to C4) - m6
+                    'B': 9   // B to D (e.g., B4 to D4) - m6
+                };
+
+                // The upper voice for 2 octaves of C Major, starting from C4 (MIDI 60).
+                const upperVoiceStartingMidi = getNoteIndex('C') + (4 * 12); // C4 (MIDI 60)
+
+                for (let o = 0; o < octaves; o++) { // Loop for 2 octaves (e.g., C4-C5, then C5-C6)
+                    for (let i = 0; i < majorScaleIntervals.length; i++) { // For each note in the C major scale (7 notes)
+                        const currentUpperMidi = upperVoiceStartingMidi + majorScaleIntervals[i] + (o * 12);
+                        const upperNoteName = noteNamesByIndex[currentUpperMidi % 12]; // Get actual note name for correct interval calc
+
+                        const semitonesToSubtract = semitonesToDiatonicSixthBelow[upperNoteName];
+                        if (semitonesToSubtract === undefined) {
+                            console.error(`Invalid upper note name for 6ths calculation: ${upperNoteName}`);
+                            continue;
+                        }
+                        const lowerMidi = currentUpperMidi - semitonesToSubtract;
+
+                        // Add the pair to ascendingNotes as an array
+                        ascendingNotes.push([Tone.Midi(lowerMidi).toNote(), Tone.Midi(currentUpperMidi).toNote()]);
+                    }
+                }
+                // Add the very top note (C6) and its corresponding 6th below (E5) to complete the ascending run
+                const finalUpperMidi = upperVoiceStartingMidi + (octaves * 12); // C6 (MIDI 84)
+                const finalLowerMidi = finalUpperMidi - semitonesToDiatonicSixthBelow['C']; // E5 (MIDI 76)
+                ascendingNotes.push([Tone.Midi(finalLowerMidi).toNote(), Tone.Midi(finalUpperMidi).toNote()]);
+
+
+                fullScaleNotes = [...ascendingNotes];
+                // Descending part: exclude the highest pair (the pivot)
+                for (let i = ascendingNotes.length - 2; i >= 0; i--) {
+                    fullScaleNotes.push(ascendingNotes[i]);
+                }
+            } else if (type === 'tetrachord in octaves') {
+                // E Major Tetrachord: E, F#, G#, A
+                const eMajorRootIndex = getNoteIndex('E');
+                const tetrachordIntervals = [0, 2, 4, 5]; // E, F#, G#, A relative to E
+
+                // Ascending tetrachord
+                for (let i = 0; i < tetrachordIntervals.length; i++) {
+                    const lowerMidi = eMajorRootIndex + tetrachordIntervals[i] + (baseOctave * 12);
+                    const upperMidi = lowerMidi + 12; // One octave higher
+                    ascendingNotes.push([Tone.Midi(lowerMidi).toNote(), Tone.Midi(upperMidi).toNote()]);
+                }
+
+                // Add the highest note (A-A octave) one more time as per sheet music
+                if (ascendingNotes.length > 0) {
+                    ascendingNotes.push(ascendingNotes[ascendingNotes.length - 1]);
+                }
+
+                fullScaleNotes = [...ascendingNotes];
+                // Descending tetrachord (reverse order, excluding the pivot repeat)
                 for (let i = ascendingNotes.length - 2; i >= 0; i--) {
                     fullScaleNotes.push(ascendingNotes[i]);
                 }
@@ -573,9 +665,17 @@
                         demonstrationButton.textContent = "Stop";
                         demonstrationButton.disabled = false;
 
-                        const noteDuration = "4n";
+                        const noteDuration = "4n"; // Quarter note duration
                         currentSequence = new Tone.Sequence((time, note) => {
-                            synth.triggerAttackRelease(note, noteDuration, time);
+                            // 'note' will be either a string (single note) or an array of strings (double stop)
+                            console.log("Playing note(s):", note, "at time:", time); // Crucial debugging log
+                            if (Array.isArray(note)) {
+                                // Explicitly trigger each note in the chord at the same time
+                                note.forEach(n => synth.triggerAttackRelease(n, noteDuration, time));
+                            } else {
+                                // For single notes, trigger as before
+                                synth.triggerAttackRelease(note, noteDuration, time);
+                            }
                         }, notesToPlay, noteDuration);
 
                         currentSequence.loop = false;
@@ -929,6 +1029,7 @@
             createGradeButtons(); // Populate grade selection buttons
             bpmValueDisplay.textContent = bpmSlider.value; // Set initial BPM display
             // The app starts on the grade selection screen, practiceScreen is hidden by default.
+            console.log("App loaded. Version: 2024-06-13-17-45"); // Unique version identifier
         };
     </script>
 </body>
