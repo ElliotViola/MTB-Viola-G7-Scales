@@ -467,9 +467,7 @@
 
             } else if (type === 'chromatic') {
                 const startMidi = arpeggioOrScaleRootIndex + (baseOctave * 12);
-                // Ensure endMidi correctly spans the octaves from the starting note.
-                // For '3 octaves', it means (root) to (root + 3 full octaves).
-                // A 3-octave chromatic scale from D3 would go up to D6.
+                // Correctly calculate endMidi to span the full octaves from the starting root note.
                 const endMidi = startMidi + (octaves * 12);
 
                 for (let midi = startMidi; midi <= endMidi; midi++) {
@@ -666,16 +664,11 @@
                         demonstrationButton.disabled = false;
 
                         const noteDuration = "4n"; // Quarter note duration
-                        currentSequence = new Tone.Sequence((time, note) => {
-                            // 'note' will be either a string (single note) or an array of strings (double stop)
-                            console.log("Playing note(s):", note, "at time:", time); // Crucial debugging log
-                            if (Array.isArray(note)) {
-                                // Explicitly trigger each note in the chord at the same time
-                                note.forEach(n => synth.triggerAttackRelease(n, noteDuration, time));
-                            } else {
-                                // For single notes, trigger as before
-                                synth.triggerAttackRelease(note, noteDuration, time);
-                            }
+                        currentSequence = new Tone.Sequence((time, noteOrNotesArray) => {
+                            // 'noteOrNotesArray' will be either a string (single note) or an array of strings (double stop)
+                            console.log("Playing note(s):", noteOrNotesArray, "at time:", time); // Crucial debugging log
+                            // Tone.PolySynth.triggerAttackRelease can take either a single note string or an array of note strings
+                            synth.triggerAttackRelease(noteOrNotesArray, noteDuration, time);
                         }, notesToPlay, noteDuration);
 
                         currentSequence.loop = false;
@@ -1029,7 +1022,7 @@
             createGradeButtons(); // Populate grade selection buttons
             bpmValueDisplay.textContent = bpmSlider.value; // Set initial BPM display
             // The app starts on the grade selection screen, practiceScreen is hidden by default.
-            console.log("App loaded. Version: 2024-06-13-17-45"); // Unique version identifier
+            console.log("App loaded. Version: 2024-06-13-18-05"); // Unique version identifier
         };
     </script>
 </body>
