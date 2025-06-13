@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Grade Scale Practice App</title>
+    <title>Elliot's Scale Practice App for MTB Viola Exams</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Tone.js CDN for audio synthesis -->
@@ -13,6 +13,7 @@
             font-family: 'Inter', sans-serif;
             background-color: #f0f4f8; /* Light blue-gray background */
             display: flex;
+            flex-direction: column; /* Changed to column to stack main container and new button */
             justify-content: center;
             align-items: center;
             min-height: 100vh;
@@ -112,7 +113,7 @@
 </head>
 <body class="selection:bg-cyan-200">
     <div class="container flex flex-col items-center justify-center p-6 sm:p-8 md:p-10">
-        <h1 id="mainTitle" class="text-3xl sm:text-4xl font-bold text-gray-800 mb-6">Multi-Grade Scale Practice App</h1>
+        <h1 id="mainTitle" class="text-3xl sm:text-4xl font-bold text-gray-800 mb-6">Elliot's Scale Practice App for MTB Viola Exams</h1>
 
         <!-- Grade Selection Screen -->
         <div id="gradeSelectionScreen" class="w-full flex flex-col items-center justify-center">
@@ -140,11 +141,19 @@
             </div>
 
             <!-- BPM Slider -->
-            <div class="w-full max-w-md flex flex-col items-center justify-center mb-10">
+            <div class="w-full max-w-md flex flex-col items-center justify-center mb-6">
                 <label for="bpmSlider" class="text-lg font-semibold text-gray-700 mb-2">
                     Playback Speed: <span id="bpmValueDisplay">50</span> BPM (crotchet)
                 </label>
                 <input type="range" id="bpmSlider" min="30" max="120" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+            </div>
+
+            <!-- Volume Slider -->
+            <div class="w-full max-w-md flex flex-col items-center justify-center mb-10">
+                <label for="volumeSlider" class="text-lg font-semibold text-gray-700 mb-2">
+                    Volume: <span id="volumeValueDisplay">100</span>%
+                </label>
+                <input type="range" id="volumeSlider" min="0" max="100" value="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
             </div>
 
             <!-- Container for Demonstration Button and Star Rating -->
@@ -171,6 +180,15 @@
             </button>
         </div>
     </div>
+
+    <!-- "Made by Elliot Corner" Button -->
+    <a href="http://www.elliotviola.co.uk/" target="_blank" rel="noopener noreferrer"
+       class="mt-8 px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold rounded-full shadow-lg
+              hover:from-blue-600 hover:to-indigo-700 transition duration-300 ease-in-out transform hover:scale-105
+              focus:outline-none focus:ring-4 focus:ring-blue-300 focus:ring-opacity-75 text-lg flex items-center justify-center">
+        Made by Elliot Corner
+    </a>
+
 
     <!-- Congratulations Modal -->
     <div id="congratulationsModal" class="modal-overlay hidden">
@@ -304,6 +322,8 @@
         const togglePracticeModeButton = document.getElementById('togglePracticeModeButton');
         const bpmSlider = document.getElementById('bpmSlider');
         const bpmValueDisplay = document.getElementById('bpmValueDisplay');
+        const volumeSlider = document.getElementById('volumeSlider'); // New
+        const volumeValueDisplay = document.getElementById('volumeValueDisplay'); // New
         const allScalesListContainer = document.getElementById('allScalesList');
         const actionContainer = document.getElementById('actionContainer');
         const demonstrationButton = document.getElementById('demonstrationButton');
@@ -328,6 +348,8 @@
         }).toDestination();
 
         Tone.Transport.bpm.value = bpmSlider.value;
+        // Set initial volume for Tone.js to 0dB (corresponds to 100% on slider)
+        Tone.Destination.volume.value = 0;
         let currentSequence = null;
 
         // --- Note Mapping for Sharps and Flats ---
@@ -394,6 +416,15 @@
                 root = parts[0].toUpperCase();
                 type = 'tetrachord in octaves';
                 octaves = 1; // Tetrachord specific logic handles its length
+            } else if (lowerCaseName.includes("chromatic scale on")) { // Added for chromatic scale root extraction
+                const onIndex = parts.indexOf('on');
+                if (onIndex !== -1 && parts.length > onIndex + 1) {
+                    root = parts[onIndex + 1].toUpperCase();
+                } else {
+                    console.error(`Could not parse root for chromatic scale: ${scaleName}`);
+                    return null;
+                }
+                type = 'chromatic';
             }
             else {
                 root = parts[0].toUpperCase();
@@ -402,7 +433,7 @@
                 if (lowerCaseName.includes("major scale")) type = 'major';
                 else if (lowerCaseName.includes("harmonic minor scale")) type = 'harmonic minor';
                 else if (lowerCaseName.includes("melodic minor scale")) type = 'melodic minor';
-                else if (lowerCaseName.includes("chromatic scale")) type = 'chromatic';
+                else if (lowerCaseName.includes("chromatic scale")) type = 'chromatic'; // This might be redundant if the "on" condition catches it.
                 else if (lowerCaseName.includes("arpeggio")) type = 'arpeggio';
                 else return null;
             }
@@ -427,28 +458,83 @@
             const { root, type, octaves, originalString } = parsed;
             let ascendingNotes = [];
             let fullScaleNotes = [];
-            const baseOctave = 3; // Starting octave for viola (C3 is lowest open string)
+            let baseOctave = 0; // Will be determined dynamically.
 
-            let arpeggioOrScaleRootIndex;
-            let keyTonicIndex = getNoteIndex(root);
+            let actualRootForGeneration = root; // This will be the note from which we generate the scale/arpeggio
 
+            // Determine the actual root note for generation based on scale type
             if (type === 'dominant 7th') {
+                // For "Dominant 7th in G", the actual arpeggio starts on D (the dominant of G)
+                // Get the index of the key tonic (e.g., G for "Dominant 7th in G")
+                const keyTonicIndex = getNoteIndex(root);
                 if (keyTonicIndex === -1) {
                     console.error(`Invalid key tonic for dominant 7th: ${root}`);
                     return [];
                 }
-                arpeggioOrScaleRootIndex = (keyTonicIndex + 7) % 12;
+                // The dominant is 7 semitones above the tonic
+                const dominantIndex = (keyTonicIndex + 7) % 12;
+                actualRootForGeneration = noteNamesByIndex[dominantIndex];
             } else if (type === 'diminished 7th') {
-                 arpeggioOrScaleRootIndex = getNoteIndex(root);
-            } else {
-                arpeggioOrScaleRootIndex = getNoteIndex(root);
+                // For "Diminished 7th on D", the actual arpeggio starts on D
+                actualRootForGeneration = root;
+            } else if (type === 'chromatic') {
+                // For "Chromatic Scale on D", the actual scale starts on D
+                actualRootForGeneration = root;
             }
+            // For major, minor, arpeggio, scale in 6ths, tetrachord, the root is the actual start note.
+
+            let arpeggioOrScaleRootIndex = getNoteIndex(actualRootForGeneration);
 
             if (arpeggioOrScaleRootIndex === -1) {
-                console.error(`Invalid root note index for generation: ${root}`);
+                console.error(`Invalid root note index for generation: ${actualRootForGeneration} (derived from original: ${scaleName})`);
                 return [];
             }
 
+            // --- Dynamic Base Octave Determination for Viola ---
+            // The lowest open string on viola is C3. Common scale starting points are higher for certain keys.
+            // Chromatic scales are typically played higher for clarity and range.
+
+            if (type === 'scale in 6ths' || type === 'tetrachord in octaves') {
+                // These double-stop scales have specific, hardcoded starting pitches for their voices.
+                // C major scale in 6ths (upper voice starts C4, lower E3)
+                // E Major Tetrachord in octaves (lower E3, upper E4)
+                // The baseOctave is effectively determined by the hardcoded midi values already.
+                // No need to set a 'baseOctave' variable for these specific cases as their pitch logic is self-contained.
+            } else if (type === 'chromatic') {
+                baseOctave = 4; // Chromatic scales generally start higher (e.g., D4 for Chromatic on D)
+            } else {
+                // For single-note scales and arpeggios, determine the most natural starting octave for viola.
+                // Keys that typically start on the D-string (D4) or A-string (A4) should be baseOctave 4.
+                // Keys that typically start on the C-string (C3) or G-string (G3) should be baseOctave 3.
+
+                const notesPreferringOctave4Start = [
+                    'D', 'D#', 'EB', // D major, Eb major/minor, E harmonic/melodic (starting D or E)
+                    'E', 'F', 'F#', 'GB', // E major/minor, F major/minor, F# minor, Gb major
+                    'C#', 'DB', // C# minor, Db major
+                    'Bb', 'B' // Bb major/minor, B major/minor
+                ];
+
+                const actualRootNoteNameNormalized = actualRootForGeneration.replace('#', '').replace('B', ''); // Just the letter name
+                const isSharpOrFlat = actualRootForGeneration.includes('#') || actualRootForGeneration.includes('B');
+
+                if (notesPreferringOctave4Start.includes(actualRootForGeneration) ||
+                    (actualRootNoteNameNormalized === 'C' && isSharpOrFlat) || // C#
+                    (actualRootNoteNameNormalized === 'G' && isSharpOrFlat)) { // G# (Ab)
+                    baseOctave = 4;
+                } else {
+                    baseOctave = 3; // Default for C, G, A
+                }
+
+                // A specific override for "Dominant 7th in F" (root C) which should be C4, not C3.
+                // This is covered by C# being included in the notesPreferringOctave4Start if it was parsed as such.
+                // But if 'C' itself becomes the root for generation, we need to check if it implies a higher start.
+                // For "Dominant 7th in F", the dominant is C. C3 is possible, but C4 is common for this arpeggio context.
+                if (type === 'dominant 7th' && actualRootForGeneration === 'C') {
+                     baseOctave = 4;
+                }
+            }
+
+            // --- Generate Notes based on Determined Base Octave ---
             if (type === 'major' || type === 'harmonic minor' || type === 'melodic minor') {
                 const intervals = scaleIntervals[type];
                 for (let o = 0; o < octaves; o++) {
@@ -467,7 +553,6 @@
 
             } else if (type === 'chromatic') {
                 const startMidi = arpeggioOrScaleRootIndex + (baseOctave * 12);
-                // Correctly calculate endMidi to span the full octaves from the starting root note.
                 const endMidi = startMidi + (octaves * 12);
 
                 for (let midi = startMidi; midi <= endMidi; midi++) {
@@ -475,10 +560,10 @@
                 }
 
                 fullScaleNotes = [...ascendingNotes];
-                // Descending: From the second highest note down to the starting note (inclusive of start)
                 for (let i = ascendingNotes.length - 2; i >= 0; i--) {
                     fullScaleNotes.push(ascendingNotes[i]);
                 }
+                console.log(`DEBUG: Chromatic Scale Notes (${scaleName}):`, JSON.stringify(fullScaleNotes));
 
             } else if (type === 'arpeggio') {
                 let arpeggioIntervals = originalString.includes("major arpeggio") ? [0, 4, 7] : [0, 3, 7];
@@ -516,7 +601,10 @@
                     fullScaleNotes.push(ascendingNotes[i]);
                 }
 
-                const resolvingTonicMidi = keyTonicIndex + (baseOctave * 12);
+                // The resolving tonic note (e.g., G for Dominant 7th in G) is added at the end.
+                // Its octave should correspond to the top of the dominant 7th arpeggio or be sensible.
+                // Assuming it resolves to the *next* octave of the tonic from the starting arpeggio.
+                const resolvingTonicMidi = keyTonicIndex + (baseOctave * 12) + (octaves * 12); // Resolve to the octave above the highest played dominant
                 fullScaleNotes.push(Tone.Midi(resolvingTonicMidi).toNote());
 
             } else if (type === 'diminished 7th') {
@@ -554,7 +642,7 @@
                     'B': 9   // B to D (e.g., B4 to D4) - m6
                 };
 
-                // The upper voice for 2 octaves of C Major, starting from C4 (MIDI 60).
+                // The upper voice for 2 octaves of C Major, starting from C4 (MIDI 60)
                 const upperVoiceStartingMidi = getNoteIndex('C') + (4 * 12); // C4 (MIDI 60)
 
                 for (let o = 0; o < octaves; o++) { // Loop for 2 octaves (e.g., C4-C5, then C5-C6)
@@ -573,13 +661,10 @@
                         ascendingNotes.push([Tone.Midi(lowerMidi).toNote(), Tone.Midi(currentUpperMidi).toNote()]);
                     }
                 }
-                // Add the very top note (C6) and its corresponding 6th below (E5) to complete the ascending run
+                // Add the very top note (C6 for 2 octaves) and its corresponding 6th below (E5) to complete the ascending run
                 const finalUpperMidi = upperVoiceStartingMidi + (octaves * 12); // C6 (MIDI 84)
                 const finalLowerMidi = finalUpperMidi - semitonesToDiatonicSixthBelow['C']; // E5 (MIDI 76)
                 ascendingNotes.push([Tone.Midi(finalLowerMidi).toNote(), Tone.Midi(finalUpperMidi).toNote()]);
-
-                // DEBUG LOG: What does ascendingNotes look like right before fullScaleNotes is made?
-                console.log("DEBUG: Ascending Notes for 6ths (before final fullScaleNotes assignment):", JSON.stringify(ascendingNotes));
 
                 fullScaleNotes = [...ascendingNotes];
                 // Descending part: exclude the highest pair (the pivot)
@@ -591,9 +676,11 @@
                 const eMajorRootIndex = getNoteIndex('E');
                 const tetrachordIntervals = [0, 2, 4, 5]; // E, F#, G#, A relative to E
 
-                // Ascending tetrachord
+                // Ascending tetrachord starting from E3
+                const lowerVoiceBaseMidi = eMajorRootIndex + (3 * 12); // E3 (MIDI 52)
+
                 for (let i = 0; i < tetrachordIntervals.length; i++) {
-                    const lowerMidi = eMajorRootIndex + tetrachordIntervals[i] + (baseOctave * 12);
+                    const lowerMidi = lowerVoiceBaseMidi + tetrachordIntervals[i];
                     const upperMidi = lowerMidi + 12; // One octave higher
                     ascendingNotes.push([Tone.Midi(lowerMidi).toNote(), Tone.Midi(upperMidi).toNote()]);
                 }
@@ -602,9 +689,6 @@
                 if (ascendingNotes.length > 0) {
                     ascendingNotes.push(ascendingNotes[ascendingNotes.length - 1]);
                 }
-
-                // DEBUG LOG: What does ascendingNotes look like right before fullScaleNotes is made?
-                console.log("DEBUG: Ascending Notes for Tetrachord (before final fullScaleNotes assignment):", JSON.stringify(ascendingNotes));
 
                 fullScaleNotes = [...ascendingNotes];
                 // Descending tetrachord (reverse order, excluding the pivot repeat)
@@ -897,7 +981,8 @@
         // --- New Grade Selection Logic ---
         function selectGrade(grade) {
             currentGrade = grade;
-            mainTitle.textContent = `Grade ${grade} Scale Practice App`;
+            // Corrected: Display grade number only, not "Grade Grade X"
+            mainTitle.textContent = `Grade ${grade.replace('Grade ', '')} Scale Practice App`;
             currentAllScales = allGradeScales[grade];
 
             // Reset ratings and available scales for the new grade
@@ -1004,6 +1089,26 @@
             console.log("BPM set to:", bpmSlider.value);
         });
 
+        // Volume Slider Logic
+        volumeSlider.addEventListener('input', () => {
+            const sliderValue = parseInt(volumeSlider.value);
+            volumeValueDisplay.textContent = sliderValue; // Display percentage
+
+            if (sliderValue === 0) {
+                Tone.Destination.volume.value = -Infinity; // Mute
+            } else {
+                // Map the 0-100 linear slider value to a -60dB to 0dB range.
+                // This gives a perception of more linear volume change.
+                // -60dB is often considered "silent" in practical audio applications.
+                const minDb = -60;
+                const maxDb = 0;
+                // Calculate dB value: (sliderValue / 100) * (maxDb - minDb) + minDb
+                const dbValue = (sliderValue / 100) * (maxDb - minDb) + minDb;
+                Tone.Destination.volume.value = dbValue;
+            }
+            console.log("Volume set to:", sliderValue, "%, calculated dB:", Tone.Destination.volume.value);
+        });
+
 
         stars.forEach(star => {
             star.addEventListener('mouseover', () => {
@@ -1060,8 +1165,8 @@
             }
             practiceScreen.classList.add('hidden');
             gradeSelectionScreen.classList.remove('hidden');
-            mainTitle.textContent = "Multi-Grade Scale Practice App"; // Reset title
-            scaleDisplay.textContent = "Your next challenge awaits!"; // Reset scale display
+            // When going back to grade selection, reset main title to the app's name
+            mainTitle.textContent = "Elliot's Scale Practice App for MTB Viola Exams";
         });
 
 
@@ -1069,8 +1174,9 @@
         window.onload = () => {
             createGradeButtons(); // Populate grade selection buttons
             bpmValueDisplay.textContent = bpmSlider.value; // Set initial BPM display
+            volumeValueDisplay.textContent = volumeSlider.value; // Set initial volume display (percentage)
             // The app starts on the grade selection screen, practiceScreen is hidden by default.
-            console.log("App loaded. Version: 2024-06-13-19-15"); // Unique version identifier
+            console.log("App loaded. Version: 2024-06-13-22-15"); // Unique version identifier
         };
     </script>
 </body>
