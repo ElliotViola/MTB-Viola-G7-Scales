@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grade 7 Viola Scale Practice App</title>
+    <title>Multi-Grade Scale Practice App</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Tone.js CDN for audio synthesis -->
@@ -112,51 +112,64 @@
 </head>
 <body class="selection:bg-cyan-200">
     <div class="container flex flex-col items-center justify-center p-6 sm:p-8 md:p-10">
-        <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-6">Grade 7 Viola Scale Practice App</h1>
-        <p class="text-lg text-gray-600 mb-8">Click the button below to get a random scale or arpeggio to practice!</p>
+        <h1 id="mainTitle" class="text-3xl sm:text-4xl font-bold text-gray-800 mb-6">Multi-Grade Scale Practice App</h1>
 
-        <div id="scaleDisplay" class="scale-display text-4xl sm:text-5xl font-extrabold text-teal-600 mb-10 flex items-center justify-center min-h-[100px] text-center p-4 bg-teal-50 rounded-lg shadow-inner w-full break-words leading-tight">
-            <!-- Scale will be displayed here -->
-            Your next challenge awaits!
-        </div>
-
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10 w-full max-w-xs">
-            <button id="gimmeScaleButton" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-teal-300 focus:ring-opacity-75 text-xl sm:text-2xl w-full">
-                Gimme a Scale!
-            </button>
-            <button id="togglePracticeModeButton" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-6 rounded-full shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-purple-300 focus:ring-opacity-75 text-lg sm:text-xl w-full">
-                Toggle Practice Mode
-            </button>
-        </div>
-
-        <!-- BPM Slider -->
-        <div class="w-full max-w-md flex flex-col items-center justify-center mb-10">
-            <label for="bpmSlider" class="text-lg font-semibold text-gray-700 mb-2">
-                Playback Speed: <span id="bpmValueDisplay">50</span> BPM (crotchet)
-            </label>
-            <input type="range" id="bpmSlider" min="30" max="120" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
-        </div>
-
-        <!-- Container for Demonstration Button and Star Rating -->
-        <div id="actionContainer" class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10 hidden">
-            <button id="demonstrationButton" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-full shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-blue-300 focus:ring-opacity-75 text-lg sm:text-xl">
-                Play Demo
-            </button>
-            <div id="starRatingContainer" class="star-rating">
-                <span class="star" data-value="1">&#9733;</span>
-                <span class="star" data-value="2">&#9733;</span>
-                <span class="star" data-value="3">&#9733;</span>
-                <span class="star" data-value="4">&#9733;</span>
-                <span class="star" data-value="5">&#9733;</span>
-                <p class="text-gray-500 text-sm mt-2">Rate how well you played (1=Hardest, 5=Easiest)</p>
+        <!-- Grade Selection Screen -->
+        <div id="gradeSelectionScreen" class="w-full flex flex-col items-center justify-center">
+            <p class="text-lg text-gray-600 mb-8">Select the exam grade you're working towards:</p>
+            <div id="gradeButtonsContainer" class="grid grid-cols-2 sm:grid-cols-3 gap-4 w-full max-w-lg">
+                <!-- Grade buttons will be inserted here by JavaScript -->
             </div>
         </div>
 
-        <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 mt-10 mb-4">All Scales & Arpeggios</h2>
-        <div id="allScalesList" class="scales-list-container grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 p-4 bg-gray-50 rounded-lg shadow-inner w-full max-h-60 overflow-y-auto">
-            <!-- Scale items will be dynamically inserted here by JavaScript -->
+        <!-- Main Practice Screen -->
+        <div id="practiceScreen" class="w-full hidden flex-col items-center justify-center">
+            <p class="text-lg text-gray-600 mb-8">Click the button below to get a random scale or arpeggio to practice!</p>
+
+            <div id="scaleDisplay" class="scale-display text-4xl sm:text-5xl font-extrabold text-teal-600 mb-10 flex items-center justify-center min-h-[100px] text-center p-4 bg-teal-50 rounded-lg shadow-inner w-full break-words leading-tight">
+                Your next challenge awaits!
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10 w-full max-w-xs">
+                <button id="gimmeScaleButton" class="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-teal-300 focus:ring-opacity-75 text-xl sm:text-2xl w-full">
+                    Gimme a Scale!
+                </button>
+                <button id="togglePracticeModeButton" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-6 rounded-full shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-purple-300 focus:ring-opacity-75 text-lg sm:text-xl w-full">
+                    Toggle Practice Mode
+                </button>
+            </div>
+
+            <!-- BPM Slider -->
+            <div class="w-full max-w-md flex flex-col items-center justify-center mb-10">
+                <label for="bpmSlider" class="text-lg font-semibold text-gray-700 mb-2">
+                    Playback Speed: <span id="bpmValueDisplay">50</span> BPM (crotchet)
+                </label>
+                <input type="range" id="bpmSlider" min="30" max="120" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+            </div>
+
+            <!-- Container for Demonstration Button and Star Rating -->
+            <div id="actionContainer" class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10 hidden">
+                <button id="demonstrationButton" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-full shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1 focus:outline-none focus:ring-4 focus:ring-blue-300 focus:ring-opacity-75 text-lg sm:text-xl">
+                    Play Demo
+                </button>
+                <div id="starRatingContainer" class="star-rating">
+                    <span class="star" data-value="1">&#9733;</span>
+                    <span class="star" data-value="2">&#9733;</span>
+                    <span class="star" data-value="3">&#9733;</span>
+                    <span class="star" data-value="4">&#9733;</span>
+                    <span class="star" data-value="5">&#9733;</span>
+                    <p class="text-gray-500 text-sm mt-2">Rate how well you played (1=Hardest, 5=Easiest)</p>
+                </div>
+            </div>
+
+            <h2 class="text-2xl sm:text-3xl font-bold text-gray-800 mt-10 mb-4">All Scales & Arpeggios</h2>
+            <div id="allScalesList" class="scales-list-container grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 p-4 bg-gray-50 rounded-lg shadow-inner w-full max-h-60 overflow-y-auto">
+                <!-- Scale items will be dynamically inserted here by JavaScript -->
+            </div>
+            <button id="backToGradesButton" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-6 rounded-full shadow-md transition duration-300 ease-in-out mt-8">
+                Back to Grades
+            </button>
         </div>
-        <!-- User ID display removed as Firebase is no longer used for persistence -->
     </div>
 
     <!-- Congratulations Modal -->
@@ -175,34 +188,115 @@
     </div>
 
     <script>
-        // Array of all MTB Grade 7 Viola Scales & Arpeggios from Memory (from the syllabus)
-        const allScales = [
-            "E major scale - 3 octaves",
-            "G harmonic minor scale - 3 octaves",
-            "E melodic minor scale - 3 octaves",
-            "E major arpeggio - 3 octaves",
-            "G minor arpeggio - 3 octaves",
-            "E minor arpeggio - 3 octaves",
-            "Chromatic Scale on D - 3 octaves",
-            "Dominant 7th in Eb - 2 octaves",
-            "Diminished 7th on D - 2 octaves"
-        ];
+        // --- Grade-specific Scale Data ---
+        const allGradeScales = {
+            'Grade 1': [
+                "C major scale - 1 octave",
+                "G major scale - 1 octave",
+                "D major scale - 1 octave",
+                "A natural minor scale - 1 octave",
+                "C major arpeggio - 1 octave",
+                "G major arpeggio - 1 octave",
+                "D major arpeggio - 1 octave",
+                "A minor arpeggio - 1 octave"
+            ],
+            'Grade 2': [
+                "F major scale - 2 octaves",
+                "Bb major scale - 2 octaves",
+                "E harmonic minor scale - 2 octaves",
+                "D melodic minor scale - 2 octaves",
+                "F major arpeggio - 2 octaves",
+                "Bb major arpeggio - 2 octaves",
+                "E minor arpeggio - 2 octaves",
+                "D minor arpeggio - 2 octaves"
+            ],
+            'Grade 3': [
+                "A major scale - 2 octaves",
+                "Eb major scale - 2 octaves",
+                "C harmonic minor scale - 2 octaves",
+                "G melodic minor scale - 2 octaves",
+                "A major arpeggio - 2 octaves",
+                "Eb major arpeggio - 2 octaves",
+                "C minor arpeggio - 2 octaves",
+                "G minor arpeggio - 2 octaves",
+                "Chromatic Scale on C - 2 octaves"
+            ],
+            'Grade 4': [ // Old Violin Grade 4 scales
+                "B major scale - 2 octaves",
+                "E major scale - 2 octaves",
+                "C harmonic minor scale - 2 octaves",
+                "F harmonic minor scale - 2 octaves",
+                "A chromatic scale - 1 octave",
+                "Dominant 7th in G", // Assumed 1 octave or specific voicing
+                "B major arpeggio - 2 octaves",
+                "E major arpeggio - 2 octaves",
+                "C minor arpeggio - 2 octaves",
+                "F minor arpeggio - 2 octaves"
+            ],
+            'Grade 5': [
+                "Db major scale - 2 octaves",
+                "Gb major scale - 2 octaves",
+                "B harmonic minor scale - 2 octaves",
+                "F melodic minor scale - 2 octaves",
+                "Db major arpeggio - 2 octaves",
+                "Gb major arpeggio - 2 octaves",
+                "B minor arpeggio - 2 octaves",
+                "F minor arpeggio - 2 octaves",
+                "Chromatic Scale on Eb - 2 octaves",
+                "Dominant 7th in C",
+                "Diminished 7th on F#"
+            ],
+            'Grade 6': [
+                "Ab major scale - 3 octaves",
+                "E harmonic minor scale - 3 octaves",
+                "C# melodic minor scale - 3 octaves",
+                "Ab major arpeggio - 3 octaves",
+                "E minor arpeggio - 3 octaves",
+                "C# minor arpeggio - 3 octaves",
+                "Chromatic Scale on A - 3 octaves",
+                "Dominant 7th in F - 2 octaves",
+                "Diminished 7th on Bb - 2 octaves"
+            ],
+            'Grade 7': [ // Current Viola Grade 7 scales
+                "E major scale - 3 octaves",
+                "G harmonic minor scale - 3 octaves",
+                "E melodic minor scale - 3 octaves",
+                "E major arpeggio - 3 octaves",
+                "G minor arpeggio - 3 octaves",
+                "E minor arpeggio - 3 octaves",
+                "Chromatic Scale on D - 3 octaves",
+                "Dominant 7th in Eb - 2 octaves",
+                "Diminished 7th on D - 2 octaves"
+            ],
+            'Grade 8': [
+                "F# major scale - 3 octaves",
+                "C harmonic minor scale - 3 octaves",
+                "Bb melodic minor scale - 3 octaves",
+                "F# major arpeggio - 3 octaves",
+                "C minor arpeggio - 3 octaves",
+                "Bb minor arpeggio - 3 octaves",
+                "Chromatic Scale on E - 3 octaves",
+                "Dominant 7th in Ab - 2 octaves",
+                "Diminished 7th on C - 2 octaves"
+            ]
+        };
 
-        // This map will store an array of ratings for each scale
-        const scaleRatings = {};
-        allScales.forEach(scale => {
-            scaleRatings[scale] = [];
-        });
-
-        let availableScales = [...allScales]; // A copy to draw from, ensuring no repeats
-        let previousScale = null; // To ensure the same scale isn't picked twice in a row immediately
-        let currentScaleSelected = null; // The scale currently displayed for rating
-        let isFirstRandomRoundCompleted = false; // Flag to track if the first random round is done for sorting logic
-        let audioContextStarted = false; // Flag to ensure Tone.js context is started only once
-        let isPlayingDemo = false; // Flag to track if the demo is currently playing
-        let isPracticeMode = false; // New flag for practice mode
+        let currentAllScales = []; // This will hold the scales for the currently selected grade
+        let scaleRatings = {}; // Ratings for the current grade
+        let availableScales = [];
+        let previousScale = null;
+        let currentScaleSelected = null;
+        let isFirstRandomRoundCompleted = false;
+        let audioContextStarted = false;
+        let isPlayingDemo = false;
+        let isPracticeMode = false;
+        let currentGrade = null; // Stores the currently selected grade
 
         // UI Element References
+        const mainTitle = document.getElementById('mainTitle');
+        const gradeSelectionScreen = document.getElementById('gradeSelectionScreen');
+        const gradeButtonsContainer = document.getElementById('gradeButtonsContainer');
+        const practiceScreen = document.getElementById('practiceScreen');
         const scaleDisplay = document.getElementById('scaleDisplay');
         const gimmeScaleButton = document.getElementById('gimmeScaleButton');
         const togglePracticeModeButton = document.getElementById('togglePracticeModeButton');
@@ -216,6 +310,7 @@
         const congratulationsModal = document.getElementById('congratulationsModal');
         const closeModalButton = document.getElementById('closeModalButton');
         const modalScalesList = document.getElementById('modalScalesList');
+        const backToGradesButton = document.getElementById('backToGradesButton');
 
         // Tone.js Setup
         const synth = new Tone.PolySynth(Tone.Synth, {
@@ -233,7 +328,25 @@
         Tone.Transport.bpm.value = bpmSlider.value;
         let currentSequence = null;
 
-        const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        // --- Note Mapping for Sharps and Flats ---
+        const noteMap = {
+            "C": 0, "C#": 1, "DB": 1,
+            "D": 2, "D#": 3, "EB": 3,
+            "E": 4, "F": 5, "F#": 6, "GB": 6,
+            "G": 7, "G#": 8, "AB": 8,
+            "A": 9, "A#": 10, "BB": 10,
+            "B": 11
+        };
+
+        const noteNamesByIndex = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+        function getNoteIndex(noteString) {
+            if (!noteString) return -1;
+            const upperCaseNote = noteString.toUpperCase();
+            return noteMap[upperCaseNote] !== undefined ? noteMap[upperCaseNote] : -1;
+        }
+        // --- End Note Mapping ---
+
         const scaleIntervals = {
             'major': [0, 2, 4, 5, 7, 9, 11],
             'harmonic minor': [0, 2, 3, 5, 7, 8, 11],
@@ -275,9 +388,7 @@
             }
             else {
                 root = parts[0].toUpperCase();
-                if (root.length > 1 && root[1] === '#') {
-                    root = root[0] + '#';
-                }
+                type = '';
 
                 if (lowerCaseName.includes("major scale")) type = 'major';
                 else if (lowerCaseName.includes("harmonic minor scale")) type = 'harmonic minor';
@@ -310,24 +421,23 @@
             let fullScaleNotes = [];
             const baseOctave = 3; // Starting octave for viola (lowest open string is C3)
 
-            let actualRootNoteForGeneration = root;
-
-            let keyTonicIndex = noteNames.indexOf(root); // Index of the key's tonic
+            let arpeggioOrScaleRootIndex;
+            let keyTonicIndex = getNoteIndex(root);
 
             if (type === 'dominant 7th') {
                 if (keyTonicIndex === -1) {
                     console.error(`Invalid key tonic for dominant 7th: ${root}`);
                     return [];
                 }
-                const dominantIndex = (keyTonicIndex + 7) % 12; // 7 semitones above key tonic
-                actualRootNoteForGeneration = noteNames[dominantIndex]; // e.g., Bb for Eb
+                arpeggioOrScaleRootIndex = (keyTonicIndex + 7) % 12;
             } else if (type === 'diminished 7th') {
-                 actualRootNoteForGeneration = root;
+                 arpeggioOrScaleRootIndex = getNoteIndex(root);
+            } else {
+                arpeggioOrScaleRootIndex = getNoteIndex(root);
             }
 
-            const arpeggioOrScaleRootIndex = noteNames.indexOf(actualRootNoteForGeneration);
             if (arpeggioOrScaleRootIndex === -1) {
-                console.error(`Invalid root note for generation: ${actualRootNoteForGeneration}`);
+                console.error(`Invalid root note index for generation: ${root}`);
                 return [];
             }
 
@@ -366,48 +476,43 @@
                 }
 
             } else if (type === 'dominant 7th') {
-                // For "Dominant 7th in Eb", the dominant is Bb.
-                // Arpeggio pattern for dominant 7th: Root, M3, P5, m7
-                const dominant7thIntervals = [0, 4, 7, 10]; // Bb, D, F, Ab
+                const dominant7thIntervals = [0, 4, 7, 10];
 
-                // Build the ascending part of the dominant 7th arpeggio
-                for (let o = 0; o < octaves; o++) { // octaves is 2
+                let currentArpeggioRootMidi = arpeggioOrScaleRootIndex + (baseOctave * 12);
+
+                for (let o = 0; o < octaves; o++) {
                     for (let i = 0; i < dominant7thIntervals.length; i++) {
-                        const midiNote = arpeggioOrScaleRootIndex + dominant7thIntervals[i] + (baseOctave * 12) + (o * 12);
-                        ascendingNotes.push(Tone.Midi(midiNote).toNote());
+                        ascendingNotes.push(Tone.Midi(currentArpeggioRootMidi + dominant7thIntervals[i]).toNote());
                     }
+                    currentArpeggioRootMidi += 12;
                 }
-                // Add the highest root of the dominant arpeggio to complete the ascending passage (Bb5 for Bb7, 2 octaves)
                 ascendingNotes.push(Tone.Midi(arpeggioOrScaleRootIndex + (baseOctave * 12) + (octaves * 12)).toNote());
 
+
                 fullScaleNotes = [...ascendingNotes];
-                // Descending part: exclude the highest pivot note (the highest root)
                 for (let i = ascendingNotes.length - 2; i >= 0; i--) {
                     fullScaleNotes.push(ascendingNotes[i]);
                 }
 
-                // Add the resolving tonic note (Eb) - this is the original key's tonic, not the dominant's root
-                const resolvingTonicMidi = keyTonicIndex + (baseOctave * 12); // Eb3
+                const resolvingTonicMidi = keyTonicIndex + (baseOctave * 12);
                 fullScaleNotes.push(Tone.Midi(resolvingTonicMidi).toNote());
 
             } else if (type === 'diminished 7th') {
-                // Diminished 7th on D (D, F, Ab, B)
-                // Arpeggio pattern for diminished 7th: Root, m3, d5, d7 (same as m3, m3, m3)
                 const dim7Intervals = [0, 3, 6, 9];
 
-                // Build the ascending part of the diminished 7th arpeggio
-                for (let o = 0; o < octaves; o++) { // octaves is 2
+                let currentArpeggioRootMidi = arpeggioOrScaleRootIndex + (baseOctave * 12);
+
+                for (let o = 0; o < octaves; o++) {
                     for (let i = 0; i < dim7Intervals.length; i++) {
-                        const midiNote = arpeggioOrScaleRootIndex + dim7Intervals[i] + (baseOctave * 12) + (o * 12);
+                        const midiNote = currentArpeggioRootMidi + dim7Intervals[i];
                         ascendingNotes.push(Tone.Midi(midiNote).toNote());
                     }
+                    currentArpeggioRootMidi += 12;
                 }
-                // Add the highest root of the diminished arpeggio to complete the ascending passage (D5 for Ddim7, 2 octaves)
                 ascendingNotes.push(Tone.Midi(arpeggioOrScaleRootIndex + (baseOctave * 12) + (octaves * 12)).toNote());
 
 
                 fullScaleNotes = [...ascendingNotes];
-                // Descending part: exclude the highest pivot note
                 for (let i = ascendingNotes.length - 2; i >= 0; i--) {
                     fullScaleNotes.push(ascendingNotes[i]);
                 }
@@ -419,16 +524,14 @@
         /**
          * Toggles the demonstration playback. If playing, stops it. If not, starts it.
          */
-        async function toggleDemonstration() { // Made async to await Tone.start()
+        async function toggleDemonstration() {
             console.log("toggleDemonstration called. Initial AudioContext state:", Tone.context.state);
 
-            // Attempt to start/resume AudioContext on every click of the demo button
-            // This is the most direct user gesture for audio playback.
             if (Tone.context.state !== 'running') {
                 try {
                     console.log("Attempting to start/resume AudioContext from toggleDemonstration...");
-                    await Tone.start(); // This will resume if suspended, or start if closed
-                    audioContextStarted = true; // Mark as started once successful
+                    await Tone.start();
+                    audioContextStarted = true;
                     console.log("AudioContext state after attempt:", Tone.context.state);
                     if (Tone.context.state !== 'running') {
                         throw new Error("AudioContext failed to transition to 'running' state.");
@@ -436,12 +539,11 @@
                 } catch (e) {
                     console.error("Error starting/resuming AudioContext:", e);
                     scaleDisplay.textContent = "Error: Audio blocked! Click here or refresh and allow sound.";
-                    scaleDisplay.classList.add('text-red-600'); // Make error message red
-                    return; // Crucially, exit if audio context isn't running
+                    scaleDisplay.classList.add('text-red-600');
+                    return;
                 }
             }
 
-            // Only proceed with playing/stopping if AudioContext is truly running
             if (Tone.context.state === 'running') {
                 if (isPlayingDemo) {
                     console.log("Stopping current demo.");
@@ -454,16 +556,16 @@
                     isPlayingDemo = false;
                     demonstrationButton.textContent = "Play Demo";
                     demonstrationButton.disabled = false;
-                    scaleDisplay.classList.remove('text-red-600'); // Clear error color
+                    scaleDisplay.classList.remove('text-red-600');
                 } else {
                     if (currentScaleSelected) {
-                        scaleDisplay.classList.remove('text-red-600'); // Clear error color if previously set
+                        scaleDisplay.classList.remove('text-red-600');
                         console.log("Preparing to play demo.");
                         const notesToPlay = getScaleNotes(currentScaleSelected);
                         if (notesToPlay.length === 0) {
-                            console.warn("No notes to play for demonstration.");
-                            // If no notes, maybe display a message or revert button state
-                            scaleDisplay.textContent = "No notes generated for this scale.";
+                            console.warn("No notes to play for demonstration. This might be a parsing or generation error for:", currentScaleSelected);
+                            scaleDisplay.textContent = `Error: No notes generated for "${currentScaleSelected}". Check console.`;
+                            scaleDisplay.classList.add('text-red-600');
                             return;
                         }
 
@@ -516,17 +618,15 @@
         }
 
         /**
-         * Renders (or re-renders) the list of all scales in the UI.
-         * Scales that are no longer in the 'availableScales' array are greyed out.
-         * Also displays average rating next to each scale and makes them clickable in practice mode.
+         * Renders (or re-renders) the list of all scales in the UI for the current grade.
          */
         function renderScalesList() {
             allScalesListContainer.innerHTML = '';
 
-            allScales.forEach(scale => {
+            currentAllScales.forEach(scale => {
                 const scaleItem = document.createElement('div');
                 const avgRating = getAverageRating(scale);
-                const ratingText = scaleRatings[scale].length > 0 ? `(Avg: ${avgRating.toFixed(1)}/5)` : '';
+                const ratingText = scaleRatings[scale] && scaleRatings[scale].length > 0 ? `(Avg: ${avgRating.toFixed(1)}/5)` : '';
 
                 scaleItem.textContent = `${scale} ${ratingText}`;
                 scaleItem.classList.add(
@@ -553,12 +653,12 @@
         }
 
         /**
-         * Shows the congratulations modal with scales sorted by difficulty.
+         * Shows the congratulations modal with scales sorted by difficulty for the current grade.
          */
         function showCongratulationsPopup() {
             modalScalesList.innerHTML = '';
 
-            const sortedScales = [...allScales].sort((a, b) => {
+            const sortedScales = [...currentAllScales].sort((a, b) => {
                 const ratingA = getAverageRating(a);
                 const ratingB = getAverageRating(b);
                 return ratingA - ratingB;
@@ -570,7 +670,7 @@
             sortedScales.forEach(scale => {
                 const li = document.createElement('li');
                 const avgRating = getAverageRating(scale);
-                const ratingText = scaleRatings[scale].length > 0 ? `(Avg: ${avgRating.toFixed(1)}/5)` : '(No ratings yet)';
+                const ratingText = scaleRatings[scale] && scaleRatings[scale].length > 0 ? `(Avg: ${avgRating.toFixed(1)}/5)` : '(No ratings yet)';
                 li.textContent = `${scale} ${ratingText}`;
                 ul.appendChild(li);
             });
@@ -589,18 +689,18 @@
         }
 
         /**
-         * Resets the available scales for a new random round, applying sorting if first random round is complete.
+         * Resets the available scales for a new random round for the current grade.
          */
         function resetRandomRound() {
             if (isFirstRandomRoundCompleted) {
-                availableScales = [...allScales].sort((a, b) => {
+                availableScales = [...currentAllScales].sort((a, b) => {
                     const ratingA = getAverageRating(a);
                     const ratingB = getAverageRating(b);
                     return ratingA - ratingB;
                 });
                 console.log("Scales sorted for next random round based on ratings:", availableScales);
             } else {
-                availableScales = [...allScales];
+                availableScales = [...currentAllScales];
             }
             renderScalesList();
         }
@@ -653,6 +753,49 @@
             }, 500);
         }
 
+        // --- New Grade Selection Logic ---
+        function selectGrade(grade) {
+            currentGrade = grade;
+            mainTitle.textContent = `Grade ${grade} Scale Practice App`;
+            currentAllScales = allGradeScales[grade];
+
+            // Reset ratings and available scales for the new grade
+            scaleRatings = {};
+            currentAllScales.forEach(scale => {
+                scaleRatings[scale] = [];
+            });
+            availableScales = [...currentAllScales];
+            previousScale = null;
+            isFirstRandomRoundCompleted = false;
+            currentScaleSelected = null;
+            scaleDisplay.textContent = "Click 'Gimme a Scale!' to start!";
+            actionContainer.classList.add('hidden');
+            gimmeScaleButton.classList.remove('hidden');
+            isPracticeMode = false; // Reset to random mode when changing grades
+
+            gradeSelectionScreen.classList.add('hidden');
+            practiceScreen.classList.remove('hidden');
+            practiceScreen.style.display = 'flex'; // Ensure flex layout
+
+            renderScalesList(); // Render scales for the newly selected grade
+        }
+
+        function createGradeButtons() {
+            for (let i = 1; i <= 8; i++) {
+                const button = document.createElement('button');
+                button.textContent = `Grade ${i}`;
+                button.classList.add(
+                    'bg-blue-500', 'hover:bg-blue-600', 'text-white', 'font-bold',
+                    'py-3', 'px-6', 'rounded-full', 'shadow-lg', 'hover:shadow-xl',
+                    'transition', 'duration-300', 'ease-in-out', 'transform', 'hover:-translate-y-1',
+                    'focus:outline-none', 'focus:ring-4', 'focus:ring-blue-300', 'focus:ring-opacity-75',
+                    'text-xl'
+                );
+                button.onclick = () => selectGrade(`Grade ${i}`);
+                gradeButtonsContainer.appendChild(button);
+            }
+        }
+
         // --- Event Listeners ---
 
         gimmeScaleButton.addEventListener('click', () => {
@@ -686,7 +829,6 @@
                 toggleDemonstration();
             }
 
-            // Attempt to start audio context here too, as this is a user gesture
             if (Tone.context.state !== 'running') {
                 try {
                     console.log("Attempting to start/resume AudioContext from Toggle Practice Mode...");
@@ -697,7 +839,6 @@
                     console.error("Error starting/resuming AudioContext from Toggle Practice Mode:", e);
                     scaleDisplay.textContent = "Audio blocked! Please ensure sound is allowed for this site.";
                     scaleDisplay.classList.add('text-red-600');
-                    // Do not return here, as the mode should still toggle.
                 }
             }
 
@@ -772,11 +913,22 @@
 
         closeModalButton.addEventListener('click', hideCongratulationsPopup);
 
+        backToGradesButton.addEventListener('click', () => {
+            if (isPlayingDemo) { // Stop any ongoing demo
+                toggleDemonstration();
+            }
+            practiceScreen.classList.add('hidden');
+            gradeSelectionScreen.classList.remove('hidden');
+            mainTitle.textContent = "Multi-Grade Scale Practice App"; // Reset title
+            scaleDisplay.textContent = "Your next challenge awaits!"; // Reset scale display
+        });
+
+
         // --- Initial Load Logic ---
         window.onload = () => {
-            scaleDisplay.textContent = "Click 'Gimme a Scale!' to start!";
+            createGradeButtons(); // Populate grade selection buttons
             bpmValueDisplay.textContent = bpmSlider.value; // Set initial BPM display
-            renderScalesList();
+            // The app starts on the grade selection screen, practiceScreen is hidden by default.
         };
     </script>
 </body>
