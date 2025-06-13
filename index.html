@@ -239,65 +239,70 @@
                 "G minor arpeggio - 2 octaves",
                 "Chromatic Scale on C - 2 octaves"
             ],
-            'Grade 4': [ // Old Violin Grade 4 scales
-                "B major scale - 2 octaves",
-                "E major scale - 2 octaves",
-                "C harmonic minor scale - 2 octaves",
-                "F harmonic minor scale - 2 octaves",
-                "A chromatic scale - 1 octave",
-                "Dominant 7th in G",
-                "B major arpeggio - 2 octaves",
-                "E major arpeggio - 2 octaves",
-                "C minor arpeggio - 2 octaves",
-                "F minor arpeggio - 2 octaves"
-            ],
-            'Grade 5': [
-                "Db major scale - 2 octaves",
-                "Gb major scale - 2 octaves",
-                "B harmonic minor scale - 2 octaves",
+            'Grade 4': [
+                "G major scale - 2 octaves",
+                "Ab major scale - 2 octaves",
+                "D harmonic minor scale - 2 octaves",
                 "F melodic minor scale - 2 octaves",
-                "Db major arpeggio - 2 octaves",
-                "Gb major arpeggio - 2 octaves",
-                "B minor arpeggio - 2 octaves",
+                "G major arpeggio - 2 octaves",
+                "Ab major arpeggio - 2 octaves",
+                "D minor arpeggio - 2 octaves",
                 "F minor arpeggio - 2 octaves",
                 "Chromatic Scale on Eb - 2 octaves",
-                "Dominant 7th in C",
-                "Diminished 7th on F#"
+                "Dominant 7th in C - 1 octave",
+                "Diminished 7th on F# - 1 octave"
+            ],
+            'Grade 5': [
+                "B major scale - 2 octaves",
+                "Db major scale - 2 octaves",
+                "G harmonic minor scale - 2 octaves",
+                "A melodic minor scale - 2 octaves",
+                "B major arpeggio - 2 octaves",
+                "Db major arpeggio - 2 octaves",
+                "G minor arpeggio - 2 octaves",
+                "A minor arpeggio - 2 octaves",
+                "Chromatic Scale on D - 2 octaves",
+                "Dominant 7th in G - 2 octaves",
+                "Diminished 7th on C - 2 octaves"
             ],
             'Grade 6': [
-                "Ab major scale - 3 octaves",
-                "E harmonic minor scale - 3 octaves",
-                "C# melodic minor scale - 3 octaves",
-                "Ab major arpeggio - 3 octaves",
-                "E minor arpeggio - 3 octaves",
-                "C# minor arpeggio - 3 octaves",
-                "Chromatic Scale on A - 3 octaves",
-                "Dominant 7th in F - 2 octaves",
-                "Diminished 7th on Bb - 2 octaves"
-            ],
-            'Grade 7': [ // Updated Viola Grade 7 scales with double stops
                 "E major scale - 3 octaves",
-                "G harmonic minor scale - 3 octaves",
-                "E melodic minor scale - 3 octaves",
+                "Bb major scale - 3 octaves",
+                "C harmonic minor scale - 3 octaves",
+                "F# melodic minor scale - 3 octaves",
                 "E major arpeggio - 3 octaves",
-                "G minor arpeggio - 3 octaves",
-                "E minor arpeggio - 3 octaves",
-                "Chromatic Scale on D - 3 octaves",
+                "Bb major arpeggio - 3 octaves",
+                "C minor arpeggio - 3 octaves",
+                "F# minor arpeggio - 3 octaves",
+                "Chromatic Scale on A - 3 octaves",
                 "Dominant 7th in Eb - 2 octaves",
-                "Diminished 7th on D - 2 octaves",
-                "C major scale in 6ths - 2 octaves", // New double stop scale
-                "E Major Tetrachord in octaves" // New double stop scale
+                "Diminished 7th on D - 2 octaves"
+            ],
+            'Grade 7': [
+                "Eb major scale - 3 octaves",
+                "F# harmonic minor scale - 3 octaves",
+                "Eb melodic minor scale - 3 octaves",
+                "Eb major arpeggio - 3 octaves",
+                "F# minor arpeggio - 3 octaves",
+                "Eb minor arpeggio - 3 octaves",
+                "Chromatic Scale on G - 3 octaves",
+                "Dominant 7th in C - 2 octaves",
+                "Diminished 7th on F# - 2 octaves",
+                "G major scale in 6ths - 2 octaves",
+                "Bb Major Tetrachord in octaves"
             ],
             'Grade 8': [
-                "F# major scale - 3 octaves",
-                "C harmonic minor scale - 3 octaves",
+                "F major scale - 3 octaves",
+                "C# harmonic minor scale - 3 octaves",
                 "Bb melodic minor scale - 3 octaves",
-                "F# major arpeggio - 3 octaves",
-                "C minor arpeggio - 3 octaves",
+                "F major arpeggio - 3 octaves",
+                "C# minor arpeggio - 3 octaves",
                 "Bb minor arpeggio - 3 octaves",
-                "Chromatic Scale on E - 3 octaves",
+                "Chromatic Scale on A - 3 octaves",
                 "Dominant 7th in Ab - 2 octaves",
-                "Diminished 7th on C - 2 octaves"
+                "Diminished 7th on D - 2 octaves",
+                "C minor scale in 6ths - 2 octaves",
+                "Db Major Tetrachord in octaves"
             ]
         };
 
@@ -373,6 +378,7 @@
 
         const scaleIntervals = {
             'major': [0, 2, 4, 5, 7, 9, 11],
+            'natural minor': [0, 2, 3, 5, 7, 8, 10], // Natural minor intervals
             'harmonic minor': [0, 2, 3, 5, 7, 8, 11],
             'melodic minor': [0, 2, 3, 5, 7, 9, 11], // Ascending
             'chromatic': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
@@ -425,6 +431,9 @@
                     return null;
                 }
                 type = 'chromatic';
+            } else if (lowerCaseName.includes("natural minor scale")) { // Added for natural minor
+                root = parts[0].toUpperCase();
+                type = 'natural minor';
             }
             else {
                 root = parts[0].toUpperCase();
@@ -494,48 +503,101 @@
             // The lowest open string on viola is C3. Common scale starting points are higher for certain keys.
             // Chromatic scales are typically played higher for clarity and range.
 
-            if (type === 'scale in 6ths' || type === 'tetrachord in octaves') {
-                // These double-stop scales have specific, hardcoded starting pitches for their voices.
-                // C major scale in 6ths (upper voice starts C4, lower E3)
-                // E Major Tetrachord in octaves (lower E3, upper E4)
-                // The baseOctave is effectively determined by the hardcoded midi values already.
-                // No need to set a 'baseOctave' variable for these specific cases as their pitch logic is self-contained.
+            if (type === 'scale in 6ths') {
+                // Handle 6ths scales separately due to their specific note pairs.
+                if (originalString.includes("c major scale in 6ths")) {
+                    baseOctave = 3; // Lower voice E3 for C Major in 6ths
+                    ascendingNotes = [
+                        ['E3', 'C4'], ['F3', 'D4'], ['G3', 'E4'], ['A3', 'F4'], ['B3', 'G4'], ['C4', 'A4'], ['D4', 'B4'],
+                        ['E4', 'C5'], ['F4', 'D5'], ['G4', 'E5'], ['A4', 'F5'], ['B4', 'G5'], ['C5', 'A5'], ['D5', 'B5'],
+                        ['E5', 'C6']
+                    ];
+                } else if (originalString.includes("g major scale in 6ths")) {
+                    baseOctave = 3; // Lower voice B3 for G Major in 6ths
+                    ascendingNotes = [
+                        ['B3', 'G4'], ['C4', 'A4'], ['D4', 'B4'], ['E4', 'C5'], ['F#4', 'D5'], ['G4', 'E5'], ['A4', 'F#5'],
+                        ['B4', 'G5'], ['C5', 'A5'], ['D5', 'B5'], ['E5', 'C6'], ['F#5', 'D6'], ['G5', 'E6'], ['A5', 'F#6'],
+                        ['B5', 'G6']
+                    ];
+                } else if (originalString.includes("c minor scale in 6ths")) {
+                     baseOctave = 3; // Lower voice Eb3 for C Minor in 6ths
+                    ascendingNotes = [
+                        ['Eb3', 'C4'], ['F3', 'D4'], ['G3', 'Eb4'], ['Ab3', 'F4'], ['Bb3', 'G4'], ['C4', 'Ab4'], ['D4', 'B4'],
+                        ['Eb4', 'C5'], ['F4', 'D5'], ['G4', 'Eb5'], ['Ab4', 'F5'], ['Bb4', 'G5'], ['C5', 'Ab5'], ['D5', 'B5'],
+                        ['Eb5', 'C6']
+                    ];
+                }
+                fullScaleNotes = [...ascendingNotes];
+                for (let i = ascendingNotes.length - 2; i >= 0; i--) {
+                    fullScaleNotes.push(ascendingNotes[i]);
+                }
+                return fullScaleNotes;
+
+            } else if (type === 'tetrachord in octaves') {
+                // Handle Tetrachord scales separately.
+                if (originalString.includes("e major tetrachord in octaves")) {
+                    // E Major Tetrachord: E, F#, G#, A
+                    baseOctave = 3; // E3
+                    ascendingNotes = [
+                        ['E3', 'E4'], ['F#3', 'F#4'], ['G#3', 'G#4'], ['A3', 'A4']
+                    ];
+                    // Add the highest note (A-A octave) one more time as per sheet music
+                    if (ascendingNotes.length > 0) {
+                        ascendingNotes.push(ascendingNotes[ascendingNotes.length - 1]);
+                    }
+                } else if (originalString.includes("bb major tetrachord in octaves")) {
+                    // Bb Major Tetrachord: Bb, C, D, Eb
+                    baseOctave = 3; // Bb3
+                    ascendingNotes = [
+                        ['Bb3', 'Bb4'], ['C4', 'C5'], ['D4', 'D5'], ['Eb4', 'Eb5']
+                    ];
+                    if (ascendingNotes.length > 0) {
+                        ascendingNotes.push(ascendingNotes[ascendingNotes.length - 1]);
+                    }
+                } else if (originalString.includes("db major tetrachord in octaves")) {
+                     // Db Major Tetrachord: Db, Eb, F, Gb
+                    baseOctave = 3; // Db3
+                    ascendingNotes = [
+                        ['Db3', 'Db4'], ['Eb3', 'Eb4'], ['F3', 'F4'], ['Gb3', 'Gb4']
+                    ];
+                    if (ascendingNotes.length > 0) {
+                        ascendingNotes.push(ascendingNotes[ascendingNotes.length - 1]);
+                    }
+                }
+
+                fullScaleNotes = [...ascendingNotes];
+                for (let i = ascendingNotes.length - 2; i >= 0; i--) {
+                    fullScaleNotes.push(ascendingNotes[i]);
+                }
+                return fullScaleNotes;
+
             } else if (type === 'chromatic') {
                 baseOctave = 4; // Chromatic scales generally start higher (e.g., D4 for Chromatic on D)
             } else {
                 // For single-note scales and arpeggios, determine the most natural starting octave for viola.
-                // Keys that typically start on the D-string (D4) or A-string (A4) should be baseOctave 4.
-                // Keys that typically start on the C-string (C3) or G-string (G3) should be baseOctave 3.
-
                 const notesPreferringOctave4Start = [
-                    'D', 'D#', 'EB', // D major, Eb major/minor, E harmonic/melodic (starting D or E)
-                    'E', 'F', 'F#', 'GB', // E major/minor, F major/minor, F# minor, Gb major
-                    'C#', 'DB', // C# minor, Db major
-                    'Bb', 'B' // Bb major/minor, B major/minor
+                    'D', 'D#', 'EB',
+                    'E', 'F', 'F#', 'GB',
+                    'C#', 'DB',
+                    'Bb', 'B',
+                    'AB' // Ab major and minor scales often start on A string in 4th position.
                 ];
 
-                const actualRootNoteNameNormalized = actualRootForGeneration.replace('#', '').replace('B', ''); // Just the letter name
-                const isSharpOrFlat = actualRootForGeneration.includes('#') || actualRootForGeneration.includes('B');
-
-                if (notesPreferringOctave4Start.includes(actualRootForGeneration) ||
-                    (actualRootNoteNameNormalized === 'C' && isSharpOrFlat) || // C#
-                    (actualRootNoteNameNormalized === 'G' && isSharpOrFlat)) { // G# (Ab)
+                if (notesPreferringOctave4Start.includes(actualRootForGeneration)) {
                     baseOctave = 4;
                 } else {
                     baseOctave = 3; // Default for C, G, A
                 }
 
-                // A specific override for "Dominant 7th in F" (root C) which should be C4, not C3.
-                // This is covered by C# being included in the notesPreferringOctave4Start if it was parsed as such.
-                // But if 'C' itself becomes the root for generation, we need to check if it implies a higher start.
-                // For "Dominant 7th in F", the dominant is C. C3 is possible, but C4 is common for this arpeggio context.
+                // Special case for Dominant 7th if its effective root for generation is 'C'
                 if (type === 'dominant 7th' && actualRootForGeneration === 'C') {
-                     baseOctave = 4;
+                     baseOctave = 4; // For Dominant 7th in F (which starts on C), C4 is typical.
                 }
             }
 
+
             // --- Generate Notes based on Determined Base Octave ---
-            if (type === 'major' || type === 'harmonic minor' || type === 'melodic minor') {
+            if (type === 'major' || type === 'harmonic minor' || type === 'melodic minor' || type === 'natural minor') {
                 const intervals = scaleIntervals[type];
                 for (let o = 0; o < octaves; o++) {
                     for (let i = 0; i < intervals.length; i++) {
@@ -626,75 +688,6 @@
                 for (let i = ascendingNotes.length - 2; i >= 0; i--) {
                     fullScaleNotes.push(ascendingNotes[i]);
                 }
-            } else if (type === 'scale in 6ths') {
-                // For "C major scale in 6ths - 2 octaves"
-                // Upper voice is C major scale, lower voice is a diatonic 6th below it.
-                const majorScaleIntervals = scaleIntervals['major']; // [0, 2, 4, 5, 7, 9, 11]
-
-                // The correct semitone differences for diatonic 6ths *below* notes of C Major (upper voice):
-                const semitonesToDiatonicSixthBelow = {
-                    'C': 8,  // C to E (e.g., C4 to E3) - m6
-                    'D': 9,  // D to F (e.g., D4 to F3) - m6
-                    'E': 9,  // E to G (e.g., E4 to G3) - m6
-                    'F': 8,  // F to A (e.g., F4 to A3) - M6
-                    'G': 8,  // G to B (e.g., G4 to B3) - M6
-                    'A': 9,  // A to C (e.g., A4 to C4) - m6
-                    'B': 9   // B to D (e.g., B4 to D4) - m6
-                };
-
-                // The upper voice for 2 octaves of C Major, starting from C4 (MIDI 60)
-                const upperVoiceStartingMidi = getNoteIndex('C') + (4 * 12); // C4 (MIDI 60)
-
-                for (let o = 0; o < octaves; o++) { // Loop for 2 octaves (e.g., C4-C5, then C5-C6)
-                    for (let i = 0; i < majorScaleIntervals.length; i++) { // For each note in the C major scale (7 notes)
-                        const currentUpperMidi = upperVoiceStartingMidi + majorScaleIntervals[i] + (o * 12);
-                        const upperNoteName = noteNamesByIndex[currentUpperMidi % 12]; // Get actual note name for correct interval calc
-
-                        const semitonesToSubtract = semitonesToDiatonicSixthBelow[upperNoteName];
-                        if (semitonesToSubtract === undefined) {
-                            console.error(`Invalid upper note name for 6ths calculation: ${upperNoteName}`);
-                            continue;
-                        }
-                        const lowerMidi = currentUpperMidi - semitonesToSubtract;
-
-                        // Add the pair to ascendingNotes as an array
-                        ascendingNotes.push([Tone.Midi(lowerMidi).toNote(), Tone.Midi(currentUpperMidi).toNote()]);
-                    }
-                }
-                // Add the very top note (C6 for 2 octaves) and its corresponding 6th below (E5) to complete the ascending run
-                const finalUpperMidi = upperVoiceStartingMidi + (octaves * 12); // C6 (MIDI 84)
-                const finalLowerMidi = finalUpperMidi - semitonesToDiatonicSixthBelow['C']; // E5 (MIDI 76)
-                ascendingNotes.push([Tone.Midi(finalLowerMidi).toNote(), Tone.Midi(finalUpperMidi).toNote()]);
-
-                fullScaleNotes = [...ascendingNotes];
-                // Descending part: exclude the highest pair (the pivot)
-                for (let i = ascendingNotes.length - 2; i >= 0; i--) {
-                    fullScaleNotes.push(ascendingNotes[i]);
-                }
-            } else if (type === 'tetrachord in octaves') {
-                // E Major Tetrachord: E, F#, G#, A
-                const eMajorRootIndex = getNoteIndex('E');
-                const tetrachordIntervals = [0, 2, 4, 5]; // E, F#, G#, A relative to E
-
-                // Ascending tetrachord starting from E3
-                const lowerVoiceBaseMidi = eMajorRootIndex + (3 * 12); // E3 (MIDI 52)
-
-                for (let i = 0; i < tetrachordIntervals.length; i++) {
-                    const lowerMidi = lowerVoiceBaseMidi + tetrachordIntervals[i];
-                    const upperMidi = lowerMidi + 12; // One octave higher
-                    ascendingNotes.push([Tone.Midi(lowerMidi).toNote(), Tone.Midi(upperMidi).toNote()]);
-                }
-
-                // Add the highest note (A-A octave) one more time as per sheet music
-                if (ascendingNotes.length > 0) {
-                    ascendingNotes.push(ascendingNotes[ascendingNotes.length - 1]);
-                }
-
-                fullScaleNotes = [...ascendingNotes];
-                // Descending tetrachord (reverse order, excluding the pivot repeat)
-                for (let i = ascendingNotes.length - 2; i >= 0; i--) {
-                    fullScaleNotes.push(ascendingNotes[i]);
-                }
             }
 
             return fullScaleNotes;
@@ -743,8 +736,9 @@
                         const notesToPlay = getScaleNotes(currentScaleSelected);
                         const parsedScale = parseScaleName(currentScaleSelected);
 
-                        // DEBUG LOG: This is the critical log for what goes into playback
-                        console.log("DEBUG: notesToPlay BEFORE playback initialization:", JSON.stringify(notesToPlay));
+                        // Added for debugging: Log the notes *before* they are sent to Tone.js
+                        console.log(`DEBUG: Notes for "${currentScaleSelected}" (Tone.js format):`, JSON.stringify(notesToPlay));
+
 
                         if (notesToPlay.length === 0) {
                             console.warn("No notes to play for demonstration. This might be a parsing or generation error for:", currentScaleSelected);
@@ -1176,7 +1170,7 @@
             bpmValueDisplay.textContent = bpmSlider.value; // Set initial BPM display
             volumeValueDisplay.textContent = volumeSlider.value; // Set initial volume display (percentage)
             // The app starts on the grade selection screen, practiceScreen is hidden by default.
-            console.log("App loaded. Version: 2024-06-13-22-15"); // Unique version identifier
+            console.log("App loaded. Version: 2024-06-13-23-00"); // Unique version identifier
         };
     </script>
 </body>
