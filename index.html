@@ -657,9 +657,10 @@
                         scaleDisplay.classList.remove('text-red-600');
                         console.log("Preparing to play demo.");
                         const notesToPlay = getScaleNotes(currentScaleSelected);
+                        const parsedScale = parseScaleName(currentScaleSelected);
 
-                        // DEBUG LOG: This is the critical log for what goes into Tone.Sequence
-                        console.log("DEBUG: notesToPlay BEFORE Tone.Sequence initialization:", JSON.stringify(notesToPlay));
+                        // DEBUG LOG: This is the critical log for what goes into playback
+                        console.log("DEBUG: notesToPlay BEFORE playback initialization:", JSON.stringify(notesToPlay));
 
                         if (notesToPlay.length === 0) {
                             console.warn("No notes to play for demonstration. This might be a parsing or generation error for:", currentScaleSelected);
@@ -673,26 +674,64 @@
                         demonstrationButton.disabled = false;
 
                         const noteDuration = "4n"; // Quarter note duration
-                        currentSequence = new Tone.Sequence((time, noteOrNotesArray) => {
-                            // 'noteOrNotesArray' will be either a string (single note) or an array of strings (double stop)
-                            console.log("Playing note(s):", noteOrNotesArray, "at time:", time); // Crucial debugging log
-                            // Tone.PolySynth.triggerAttackRelease can take either a single note string or an array of note strings
-                            synth.triggerAttackRelease(noteOrNotesArray, noteDuration, time);
-                        }, notesToPlay, noteDuration);
+                        const noteDurationSeconds = Tone.Time(noteDuration).toSeconds();
 
-                        currentSequence.loop = false;
-                        currentSequence.start(0);
-                        Tone.Transport.start();
-                        isPlayingDemo = true;
+                        // Clear any existing sequence or scheduled events before starting a new one
+                        if (currentSequence) {
+                            currentSequence.stop();
+                            currentSequence.dispose();
+                            currentSequence = null;
+                        }
+                        Tone.Transport.cancel(); // Cancel all scheduled events
 
-                        const totalDurationInSeconds = Tone.Time(noteDuration).toSeconds() * notesToPlay.length;
 
-                        Tone.Transport.scheduleOnce(() => {
-                            console.log("Demo sequence finished naturally.");
-                            if (isPlayingDemo) {
-                                toggleDemonstration();
-                            }
-                        }, Math.max(Tone.Time("32n").toSeconds(), totalDurationInSeconds));
+                        // Check if it's a double-stop scale type and handle manually
+                        if (parsedScale && (parsedScale.type === 'scale in 6ths' || parsedScale.type === 'tetrachord in octaves')) {
+                            console.log("DEBUG: Handling double-stop scale with manual scheduling.");
+                            let currentTime = 0;
+                            notesToPlay.forEach((noteOrNotesArray, index) => {
+                                // Schedule each chord (array of notes) at a specific time
+                                Tone.Transport.scheduleOnce((time) => {
+                                    console.log(`Playing chord: ${JSON.stringify(noteOrNotesArray)} at time: ${time}`);
+                                    synth.triggerAttackRelease(noteOrNotesArray, noteDuration);
+                                }, currentTime);
+                                currentTime += noteDurationSeconds; // Advance time for the next note/chord
+                            });
+
+                            // Schedule the stopping of transport after all notes are played
+                            Tone.Transport.scheduleOnce(() => {
+                                console.log("Manual demo sequence finished naturally.");
+                                if (isPlayingDemo) { // Only stop if still playing this demo
+                                    toggleDemonstration();
+                                }
+                            }, currentTime); // currentTime now holds the end time of the last note
+
+                            Tone.Transport.start();
+                            isPlayingDemo = true;
+
+                        } else {
+                            console.log("DEBUG: Handling single-note scale with Tone.Sequence.");
+                            // For single notes, use Tone.Sequence as it works reliably
+                            currentSequence = new Tone.Sequence((time, noteOrNotesArray) => {
+                                console.log("Playing note(s):", noteOrNotesArray, "at time:", time);
+                                synth.triggerAttackRelease(noteOrNotesArray, noteDuration, time);
+                            }, notesToPlay, noteDuration);
+
+                            currentSequence.loop = false;
+                            currentSequence.start(0);
+                            Tone.Transport.start();
+                            isPlayingDemo = true;
+
+                            const totalDurationInSeconds = noteDurationSeconds * notesToPlay.length;
+
+                            Tone.Transport.scheduleOnce(() => {
+                                console.log("Tone.Sequence demo finished naturally.");
+                                if (isPlayingDemo) {
+                                    toggleDemonstration();
+                                }
+                            }, Math.max(Tone.Time("32n").toSeconds(), totalDurationInSeconds));
+                        }
+
                     } else {
                         scaleDisplay.textContent = "Please select a scale first!";
                     }
@@ -1031,7 +1070,7 @@
             createGradeButtons(); // Populate grade selection buttons
             bpmValueDisplay.textContent = bpmSlider.value; // Set initial BPM display
             // The app starts on the grade selection screen, practiceScreen is hidden by default.
-            console.log("App loaded. Version: 2024-06-13-18-50"); // Unique version identifier
+            console.log("App loaded. Version: 2024-06-13-19-15"); // Unique version identifier
         };
     </script>
 </body>
