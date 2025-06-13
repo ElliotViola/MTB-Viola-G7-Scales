@@ -500,99 +500,44 @@
                 return [];
             }
 
-            // --- Dynamic Base Octave Determination for Viola ---
-            // The lowest open string on viola is C3. Common scale starting points are higher for certain keys.
-            // Chromatic scales are typically played higher for clarity and range.
+            // --- Dynamic Base Octave Determination for Viola (aligned with Tone.js notation) ---
+            // Tone.js uses C4 as MIDI 60. Viola's open C string is C3 (MIDI 48).
+            // So if baseToneJsOctave is 3, it refers to C3, G3, A3 etc.
+            // If baseToneJsOctave is 4, it refers to D4, E4, F4 etc.
 
-            if (type === 'scale in 6ths') {
-                // Handle 6ths scales separately due to their specific note pairs.
-                if (originalString.includes("c major scale in 6ths")) {
-                    baseOctave = 3; // Lower voice E3 for C Major in 6ths
-                    ascendingNotes = [
-                        ['E3', 'C4'], ['F3', 'D4'], ['G3', 'E4'], ['A3', 'F4'], ['B3', 'G4'], ['C4', 'A4'], ['D4', 'B4'],
-                        ['E4', 'C5'], ['F4', 'D5'], ['G4', 'E5'], ['A4', 'F5'], ['B4', 'G5'], ['C5', 'A5'], ['D5', 'B5'],
-                        ['E5', 'C6']
-                    ];
-                } else if (originalString.includes("g major scale in 6ths")) {
-                    baseOctave = 3; // Lower voice B3 for G Major in 6ths
-                    ascendingNotes = [
-                        ['B3', 'G4'], ['C4', 'A4'], ['D4', 'B4'], ['E4', 'C5'], ['F#4', 'D5'], ['G4', 'E5'], ['A4', 'F#5'],
-                        ['B4', 'G5'], ['C5', 'A5'], ['D5', 'B5'], ['E5', 'C6'], ['F#5', 'D6'], ['G5', 'E6'], ['A5', 'F#6'],
-                        ['B5', 'G6']
-                    ];
-                } else if (originalString.includes("c minor scale in 6ths")) {
-                     baseOctave = 3; // Lower voice Eb3 for C Minor in 6ths
-                    ascendingNotes = [
-                        ['Eb3', 'C4'], ['F3', 'D4'], ['G3', 'Eb4'], ['Ab3', 'F4'], ['Bb3', 'G4'], ['C4', 'Ab4'], ['D4', 'B4'],
-                        ['Eb4', 'C5'], ['F4', 'D5'], ['G4', 'Eb5'], ['Ab4', 'F5'], ['Bb4', 'G5'], ['C5', 'Ab5'], ['D5', 'B5'],
-                        ['Eb5', 'C6']
-                    ];
-                }
-                fullScaleNotes = [...ascendingNotes];
-                for (let i = ascendingNotes.length - 2; i >= 0; i--) {
-                    fullScaleNotes.push(ascendingNotes[i]);
-                }
-                return fullScaleNotes;
-
-            } else if (type === 'tetrachord in octaves') {
-                // Handle Tetrachord scales separately.
-                if (originalString.includes("e major tetrachord in octaves")) {
-                    // E Major Tetrachord: E, F#, G#, A
-                    baseOctave = 3; // E3
-                    ascendingNotes = [
-                        ['E3', 'E4'], ['F#3', 'F#4'], ['G#3', 'G#4'], ['A3', 'A4']
-                    ];
-                    // Add the highest note (A-A octave) one more time as per sheet music
-                    if (ascendingNotes.length > 0) {
-                        ascendingNotes.push(ascendingNotes[ascendingNotes.length - 1]);
-                    }
-                } else if (originalString.includes("bb major tetrachord in octaves")) {
-                    // Bb Major Tetrachord: Bb, C, D, Eb
-                    baseOctave = 3; // Bb3
-                    ascendingNotes = [
-                        ['Bb3', 'Bb4'], ['C4', 'C5'], ['D4', 'D5'], ['Eb4', 'Eb5']
-                    ];
-                    if (ascendingNotes.length > 0) {
-                        ascendingNotes.push(ascendingNotes[ascendingNotes.length - 1]);
-                    }
-                } else if (originalString.includes("db major tetrachord in octaves")) {
-                     // Db Major Tetrachord: Db, Eb, F, Gb
-                    baseOctave = 3; // Db3
-                    ascendingNotes = [
-                        ['Db3', 'Db4'], ['Eb3', 'Eb4'], ['F3', 'F4'], ['Gb3', 'Gb4']
-                    ];
-                    if (ascendingNotes.length > 0) {
-                        ascendingNotes.push(ascendingNotes[ascendingNotes.length - 1]);
-                    }
-                }
-
-                fullScaleNotes = [...ascendingNotes];
-                for (let i = ascendingNotes.length - 2; i >= 0; i--) {
-                    fullScaleNotes.push(ascendingNotes[i]);
-                }
-                return fullScaleNotes;
-
+            if (type === 'scale in 6ths' || type === 'tetrachord in octaves') {
+                // These have specific hardcoded notes/octaves, logic is already self-contained.
+                // baseOctave variable is not used for these, their notes are explicitly defined.
             } else if (type === 'chromatic') {
-                baseOctave = 4; // Chromatic scales generally start higher (e.g., D4 for Chromatic on D)
+                // Chromatic scales generally start higher for clarity and range.
+                // For a D chromatic starting on D4 (MIDI 62):
+                // D's root index is 2. To get MIDI 62: (2 + (baseOctave * 12)) = 62 => baseOctave * 12 = 60 => baseOctave = 5.
+                baseOctave = 5; // Corresponds to Tone.js Octave 4 for D, E, F, etc.
             } else {
-                // For single-note scales and arpeggios, determine the most natural starting octave for viola.
-                const notesPreferringOctave4Start = [
-                    'D', 'D#', 'EB',
-                    'E', 'F', 'F#', 'GB',
-                    'C#', 'DB',
-                    'Bb', 'B',
-                    'AB' // Ab major and minor scales often start on A string in 4th position.
+                // For single-note scales and arpeggios, assign the Tone.js octave number.
+                const rootsPreferringToneJsOctave4Start = [
+                    'D', 'D#', 'EB', // For D4, Eb4
+                    'E', 'F', 'F#', 'GB', // For E4, F4, F#4, Gb4
+                    'C#', 'DB', // For C#4, Db4
+                    'Bb', 'B', // For Bb4, B4
+                    'AB' // For Ab4
                 ];
 
-                if (notesPreferringOctave4Start.includes(actualRootForGeneration)) {
-                    baseOctave = 4;
+                if (rootsPreferringToneJsOctave4Start.includes(actualRootForGeneration)) {
+                    baseOctave = 4; // These roots will typically start at Tone.js Octave 4 (e.g., D4, E4).
+                                    // Example: For D (index 2), notes will be 2 + (4 * 12) = 50 (D4). This is the desired physical octave.
                 } else {
-                    baseOctave = 3; // Default for C, G, A
+                    // This covers C, G, A
+                    baseOctave = 3; // These roots will typically start at Tone.js Octave 3 (e.g., C3, G3, A3).
+                                    // Example: For C (index 0), notes will be 0 + (3 * 12) = 36 (C3). This is the desired physical octave.
                 }
 
-                // Special case for Dominant 7th if its effective root for generation is 'C'
+                // Special case for Dominant 7th in F, whose actualRootForGeneration is 'C'.
+                // Normally 'C' would get baseOctave 3 (C3). But for this specific dominant 7th,
+                // it is commonly played starting on C4.
                 if (type === 'dominant 7th' && actualRootForGeneration === 'C') {
-                     baseOctave = 4; // For Dominant 7th in F (which starts on C), C4 is typical.
+                    baseOctave = 4; // Override to make C start at Tone.js C4.
+                                    // Example: For C (index 0), notes will be 0 + (4 * 12) = 48 (C4). Correct for this context.
                 }
             }
 
@@ -1171,7 +1116,7 @@
             bpmValueDisplay.textContent = bpmSlider.value; // Set initial BPM display
             volumeValueDisplay.textContent = volumeSlider.value; // Set initial volume display (percentage)
             // The app starts on the grade selection screen, practiceScreen is hidden by default.
-            console.log("App loaded. Version: 2024-06-13-23-15"); // Unique version identifier
+            console.log("App loaded. Version: 2024-06-13-23-30"); // Unique version identifier
         };
     </script>
 </body>
