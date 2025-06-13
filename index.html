@@ -685,68 +685,40 @@
          */
         function getScaleNotes(scaleObj) {
             const scaleFullName = scaleObj.name;
-            const startingViolaNote = scaleObj.startNote; // e.g., "C3", "D4"
+            const startingViolaNote = scaleObj.startNote;
 
             const parsed = parseScaleName(scaleFullName);
             if (!parsed) return [];
 
             const { root, type, octaves, originalString } = parsed;
-            let sequenceData = []; // Array to store { notes: [], duration: '' } objects
+            let sequenceData = [];
 
-            // Extract the numerical octave from the startingViolaNote string
-            const startOctaveMatch = startingViolaNote.match(/\d+$/);
-            const startOctave = startOctaveMatch ? parseInt(startOctaveMatch[0]) : 3; // Default to 3 if not found
-
-            // Get the MIDI pitch class index of the original scale root (e.g., C=0, C#=1)
+            const initialBaseMidi = Tone.Midi(startingViolaNote).toMidi();
             const rootNoteOnly = startingViolaNote.match(/^[A-G][b#]*/i)[0];
             const initialRootPitchClass = getNoteIndex(rootNoteOnly);
-            const initialBaseMidi = Tone.Midi(startingViolaNote).toMidi();
-
 
             // Helper to determine if a note is a tonic relative to the initial root pitch class
             const isScaleTonic = (midiNote) => {
-                return (Tone.Midi(midiNote).toMidi() % 12) === initialRootPitchClass;
+                // Ensure midiNote is a number (can be string from Tone.Midi(...).toNote() then toMidi())
+                if (typeof midiNote === 'string') {
+                    midiNote = Tone.Midi(midiNote).toMidi();
+                }
+                return (midiNote % 12) === initialRootPitchClass;
             };
 
-            let keyTonicIndexForDominant7th = -1;
-            if (type === 'dominant 7th') {
-                keyTonicIndexForDominant7th = getNoteIndex(root);
-            }
-
-            // --- Normal note duration logic for all other scales ---
-            let baseNoteDuration;
+            let baseNoteDuration = '8n'; // Default to quavers for most scales and arpeggios
             let longTonicDuration = '4n'; // Default long tonic duration (crotchet)
 
-            if (['major', 'natural minor', 'harmonic minor', 'melodic minor'].includes(type)) {
-                baseNoteDuration = '8n'; // Quavers for scales
-            } else if (type === 'arpeggio') {
+            // Special cases for baseNoteDuration before main logic
+            if (type === 'arpeggio') {
                 baseNoteDuration = '4n'; // Crotchets for arpeggios
             } else if (type === 'chromatic') {
-                baseNoteDuration = '8n'; // Chromatic scale notes are quavers, not triplets (fixed)
-            } else if (['dominant 7th', 'diminished 7th', 'scale in 6ths', 'tetrachord in octaves', 'tetrachord in 6ths'].includes(type)) {
-                baseNoteDuration = '8n'; // Quavers for these types
-            } else {
-                baseNoteDuration = '8n'; // Default to quaver if type is unknown or not explicitly handled
+                baseNoteDuration = '8n'; // Chromatic scale notes are quavers
             }
 
-            // --- Special rule for "Broken Steps" playback (triggered by playbackRule property) ---
             if (scaleObj.playbackRule === 'brokenSteps') {
                 let generatedPairs = [];
-
-                // For "C Major in 6ths", the first *lower* note is E3, and the first *upper* note is C4.
-                // The tetrachord degrees (1,2,3,4) here refer to the C major scale itself, but the starting point
-                // is shifted. We will generate the notes based on the stated starting pair and C Major intervals.
-                
-                // Base midi for the "1st" note of the tetrachord for the *lower* voice (E3)
-                const firstLowerMidi = Tone.Midi('E3').toMidi();
-                // Base midi for the "1st" note of the tetrachord for the *upper* voice (C4)
-                const firstUpperMidi = Tone.Midi('C4').toMidi();
-
-                const cMajorIntervals = scaleIntervals['major']; // C major intervals
-
-                // Generate the 4 pairs of the tetrachord (1-2-3-4 based on the C major scale, but starting from E3/C4 pitches)
-                // The intervals of the C major scale relative to C: 0 (C), 2 (D), 4 (E), 5 (F)
-                // To get E3, F3, G3, A3 as lower notes, and C4, D4, E4, F4 as upper notes
+                // For "C Major in 6ths", the starting pitches are E3 (lower) and C4 (upper).
                 const lowerTetrachordNotesMidi = [
                     Tone.Midi('E3').toMidi(),  // E3
                     Tone.Midi('F3').toMidi(),  // F3
@@ -784,9 +756,8 @@
                 return sequenceData; // Return immediately after handling this special case
             }
 
-
-            // --- Generate notes for standard scales (Major, Natural Minor, Harmonic Minor, Melodic Minor) ---
-            if (['major', 'natural minor', 'harmonic minor', 'melodic minor'].includes(type)) {
+            // --- Main scale/arpeggio generation logic for Major/Minor scales ---
+            if (['major', 'natural minor', 'harmonic minor'].includes(type)) {
                 const intervals = scaleIntervals[type];
                 let currentMidi = initialBaseMidi;
 
@@ -795,7 +766,7 @@
                     for (let i = 0; i < intervals.length; i++) {
                         const noteMidi = currentMidi + intervals[i];
                         const noteName = Tone.Midi(noteMidi).toNote();
-                        const duration = (o === 0 && i === 0) || (i === 0 && o > 0) ? longTonicDuration : baseNoteDuration;
+                        const duration = (o === 0 && i === 0) || (i === 0 && isScaleTonic(noteMidi)) ? longTonicDuration : baseNoteDuration;
                         sequenceData.push({ notes: [noteName], duration: duration });
                     }
                     currentMidi += 12; // Move to the next octave for intervals
@@ -804,38 +775,74 @@
                 sequenceData.push({ notes: [Tone.Midi(initialBaseMidi + (octaves * 12)).toNote()], duration: longTonicDuration });
 
                 // Descending part
-                let fullAscendingNotesOnly = [];
-                currentMidi = initialBaseMidi;
+                // Build the full ascending sequence of MIDI notes first to reverse it correctly
+                let fullAscendingMidiNotes = [];
+                let tempMidi = initialBaseMidi;
                 for (let o = 0; o < octaves; o++) {
                     for (let i = 0; i < intervals.length; i++) {
-                        fullAscendingNotesOnly.push(Tone.Midi(currentMidi + intervals[i]).toNote());
+                        fullAscendingMidiNotes.push(tempMidi + intervals[i]);
                     }
-                    currentMidi += 12;
+                    tempMidi += 12;
                 }
-                fullAscendingNotesOnly.push(Tone.Midi(initialBaseMidi + (octaves * 12)).toNote());
+                fullAscendingMidiNotes.push(initialBaseMidi + (octaves * 12)); // Add the very top tonic's MIDI
 
-                // Reverse and slice to create the descending sequence (skip the first element which is the highest tonic, already played)
-                const descendingNotesList = [...fullAscendingNotesOnly].reverse().slice(1);
+                // Reverse and slice to create the descending sequence (skip the first element which is the highest tonic, already added)
+                const descendingMidiNotesList = [...fullAscendingMidiNotes].reverse().slice(1);
 
-                descendingNotesList.forEach((noteName, index) => {
-                    const noteMidi = Tone.Midi(noteName).toMidi();
-                    const isDescendingTonic = (noteMidi % 12) === initialRootPitchClass;
-                    const duration = isDescendingTonic ? longTonicDuration : baseNoteDuration;
+                descendingMidiNotesList.forEach((midiNote) => {
+                    const noteName = Tone.Midi(midiNote).toNote();
+                    const duration = isScaleTonic(midiNote) ? longTonicDuration : baseNoteDuration;
                     sequenceData.push({ notes: [noteName], duration: duration });
                 });
 
-            } else if (type === 'chromatic') {
-                const startMidi = initialBaseMidi;
-                const endMidi = startMidi + (octaves * 12);
+            } else if (type === 'melodic minor') {
+                const ascendingIntervals = scaleIntervals['melodic minor_ascending'];
+                const descendingIntervals = scaleIntervals['melodic minor_descending'];
 
-                // Ascending
-                for (let midi = startMidi; midi <= endMidi; midi++) {
-                    sequenceData.push({ notes: [Tone.Midi(midi).toNote()], duration: baseNoteDuration });
+                // Ascending part
+                let currentAscendingMidi = initialBaseMidi;
+                for (let o = 0; o < octaves; o++) {
+                    for (let i = 0; i < ascendingIntervals.length; i++) {
+                        const noteMidi = currentAscendingMidi + ascendingIntervals[i];
+                        const noteName = Tone.Midi(noteMidi).toNote();
+                        // Apply long tonic for the first note of each octave ascending
+                        const duration = (o === 0 && i === 0) || (i === 0 && isScaleTonic(noteMidi)) ? longTonicDuration : baseNoteDuration;
+                        sequenceData.push({ notes: [noteName], duration: duration });
+                    }
+                    currentAscendingMidi += 12;
                 }
-                // Descending (from the note one step below the highest, down to the starting note)
-                for (let midi = endMidi - 1; midi >= startMidi; midi--) {
-                    sequenceData.push({ notes: [Tone.Midi(midi).toNote()], duration: baseNoteDuration });
+                // Add the very top tonic (last note played ascending)
+                sequenceData.push({ notes: [Tone.Midi(initialBaseMidi + (octaves * 12)).toNote()], duration: longTonicDuration });
+
+                // Descending part
+                let descendingMidiNotes = [];
+                // Build full descending sequence of MIDI notes based on octaves and descending intervals
+                for (let o = octaves; o >= 1; o--) { // Iterate from highest octave down to the starting octave
+                    const baseMidiForOctave = initialBaseMidi + ((o - 1) * 12);
+                    for (let i = descendingIntervals.length - 1; i >= 0; i--) { // Iterate intervals in reverse
+                        const noteMidi = baseMidiForOctave + descendingIntervals[i];
+                        // Ensure the note is within the expected range (e.g., not going below the original starting note)
+                        if (noteMidi >= initialBaseMidi && !descendingMidiNotes.includes(noteMidi)) { // Avoid duplicates if any
+                            descendingMidiNotes.push(noteMidi);
+                        }
+                    }
                 }
+
+                // The descending melodic minor starts one step below the highest tonic if it's a 3-octave scale.
+                // We need to remove the first note if it's the exact duplicate of the highest tonic that was already played ascending.
+                const highestTonicMidi = Tone.Midi(initialBaseMidi + (octaves * 12)).toMidi();
+                if (descendingMidiNotes.length > 0 && descendingMidiNotes[0] === highestTonicMidi) {
+                     descendingMidiNotes.shift(); // Remove the duplicate highest tonic
+                }
+                // If it's a 3-octave scale, the first note of the *descending* part is technically the second-highest note.
+                // However, the rule is "all notes matching the tonic note of the scale are twice as long".
+                // So we just iterate through the notes and check if they are tonic.
+
+                descendingMidiNotes.forEach((midiNote) => {
+                    const noteName = Tone.Midi(midiNote).toNote();
+                    const duration = isScaleTonic(midiNote) ? longTonicDuration : baseNoteDuration;
+                    sequenceData.push({ notes: [noteName], duration: duration });
+                });
 
             } else if (type === 'arpeggio') {
                 let arpeggioIntervals;
@@ -856,14 +863,27 @@
                 sequenceData.push({ notes: [Tone.Midi(initialBaseMidi + (octaves * 12)).toNote()], duration: baseNoteDuration }); // Top tonic
 
                 // Descending (reversing ascending notes)
-                const ascendingNotesCopy = sequenceData.map(item => item.notes[0]); // Get just note names
-                for (let i = ascendingNotesCopy.length - 2; i >= 0; i--) { // Skip highest tonic for start of descent
+                const ascendingNotesCopy = sequenceData.map(item => item.notes[0]);
+                for (let i = ascendingNotesCopy.length - 2; i >= 0; i--) {
                     sequenceData.push({ notes: [ascendingNotesCopy[i]], duration: baseNoteDuration });
                 }
 
+            } else if (type === 'chromatic') {
+                const startMidi = initialBaseMidi;
+                const endMidi = startMidi + (octaves * 12);
+
+                // Ascending
+                for (let midi = startMidi; midi <= endMidi; midi++) {
+                    sequenceData.push({ notes: [Tone.Midi(midi).toNote()], duration: baseNoteDuration });
+                }
+                // Descending (from the note one step below the highest, down to the starting note)
+                for (let midi = endMidi - 1; midi >= startMidi; midi--) {
+                    sequenceData.push({ notes: [Tone.Midi(midi).toNote()], duration: baseNoteDuration });
+                }
             } else if (type === 'dominant 7th') {
                 const dominant7thIntervals = [0, 4, 7, 10];
                 let currentMidi = initialBaseMidi;
+                const startOctaveNum = parseInt(startingViolaNote.match(/\d+/)[0]);
 
                 // Ascending
                 for (let o = 0; o < octaves; o++) {
@@ -875,13 +895,16 @@
                 sequenceData.push({ notes: [Tone.Midi(initialBaseMidi + (octaves * 12)).toNote()], duration: baseNoteDuration }); // Top root of arpeggio
 
                 // Descending (reversing ascending notes)
-                const ascendingNotesCopy = sequenceData.map(item => item.notes[0]); // Get just note names
+                const ascendingNotesCopy = sequenceData.map(item => item.notes[0]);
                 for (let i = ascendingNotesCopy.length - 2; i >= 0; i--) {
                     sequenceData.push({ notes: [ascendingNotesCopy[i]], duration: baseNoteDuration });
                 }
 
                 // Add the resolving tonic note (e.g., G for Dominant 7th in G)
-                const resolvingTonicMidi = Tone.Midi(`${noteNamesByIndex[keyTonicIndexForDominant7th]}${startOctave + octaves}`).toMidi();
+                // The parseScaleName gives `root` as the *key* (e.g., 'G' for 'Dominant 7th in G').
+                // The resolving tonic should be this `root` at the *starting octave* for the *dominant 7th*.
+                // This logic seems correct for this purpose.
+                const resolvingTonicMidi = Tone.Midi(`${root}${startOctaveNum}`).toMidi();
                 sequenceData.push({ notes: [Tone.Midi(resolvingTonicMidi).toNote()], duration: baseNoteDuration });
 
             } else if (type === 'diminished 7th') {
@@ -898,15 +921,14 @@
                 sequenceData.push({ notes: [Tone.Midi(initialBaseMidi + (octaves * 12)).toNote()], duration: baseNoteDuration }); // Top root
 
                 // Descending (reversing ascending notes)
-                const ascendingNotesCopy = sequenceData.map(item => item.notes[0]); // Get just note names
+                const ascendingNotesCopy = sequenceData.map(item => item.notes[0]);
                 for (let i = ascendingNotesCopy.length - 2; i >= 0; i--) {
                     sequenceData.push({ notes: [ascendingNotesCopy[i]], duration: baseNoteDuration });
                 }
-            } else if (type === 'tetrachord in octaves' || type === 'tetrachord in 6ths') { // Handle generic tetrachords
-                const scaleTypeForTetrachord = originalString.toLowerCase().includes('major') ? 'major' : 'natural minor'; // Determine major/minor for tetrachord
+            } else if (type === 'tetrachord in octaves' || type === 'tetrachord in 6ths') {
+                const scaleTypeForTetrachord = originalString.toLowerCase().includes('major') ? 'major' : 'natural minor';
                 const intervals = scaleIntervals[scaleTypeForTetrachord];
 
-                // Generate 1-2-3-4
                 let tetrachordNotes = [];
                 let currentMidi = initialBaseMidi;
                 // Get the first 4 notes of the scale (1st, 2nd, 3rd, 4th degrees)
@@ -935,7 +957,6 @@
                     }
                 });
             }
-
 
             return sequenceData;
         }
@@ -1596,7 +1617,7 @@
             bpmValueDisplay.textContent = bpmSlider.value; // Set initial BPM display
             volumeValueDisplay.textContent = volumeSlider.value; // Set initial volume display (percentage)
             // The app starts on the grade selection screen, practiceScreen is hidden by default.
-            console.log("App loaded. Version: 2024-06-14-03-50"); // Unique version identifier
+            console.log("App loaded. Version: 2024-06-14-04-10"); // Unique version identifier
         };
     </script>
 </body>
