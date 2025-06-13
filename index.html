@@ -420,19 +420,25 @@
          * Toggles the demonstration playback. If playing, stops it. If not, starts it.
          */
         async function toggleDemonstration() { // Made async to await Tone.start()
-            // Ensure audio context is started on first user interaction with this button
-            if (!audioContextStarted) {
+            console.log("toggleDemonstration called. AudioContext state:", Tone.context.state);
+
+            // Ensure audio context is started/resumed on first user interaction with this button
+            if (Tone.context.state !== 'running') {
                 try {
+                    console.log("Attempting to start/resume AudioContext...");
                     await Tone.start(); // Await the promise
-                    audioContextStarted = true;
-                    console.log("Audio context started!");
+                    audioContextStarted = true; // Mark as started
+                    console.log("Audio context started/resumed successfully. State:", Tone.context.state);
                 } catch (e) {
-                    console.error("Error starting audio context:", e);
+                    console.error("Error starting/resuming audio context:", e);
+                    // Display a user-friendly message if audio context fails to start
+                    scaleDisplay.textContent = "Audio blocked! Please ensure sound is allowed for this site.";
                     return; // Stop function execution
                 }
             }
 
             if (isPlayingDemo) {
+                console.log("Stopping current demo.");
                 if (currentSequence) {
                     currentSequence.stop();
                     currentSequence.dispose();
@@ -442,7 +448,6 @@
                 isPlayingDemo = false;
                 demonstrationButton.textContent = "Play Demo";
                 demonstrationButton.disabled = false;
-                console.log("Demo stopped.");
             } else {
                 if (currentScaleSelected) {
                     const notesToPlay = getScaleNotes(currentScaleSelected);
@@ -468,8 +473,9 @@
                     const totalDurationInSeconds = Tone.Time(noteDuration).toSeconds() * notesToPlay.length;
 
                     Tone.Transport.scheduleOnce(() => {
-                        if (isPlayingDemo) {
-                            toggleDemonstration();
+                        console.log("Demo sequence finished naturally.");
+                        if (isPlayingDemo) { // Check if it hasn't been stopped manually already
+                            toggleDemonstration(); // Call toggle to reset state and button text
                         }
                     }, Math.max(Tone.Time("32n").toSeconds(), totalDurationInSeconds));
                 }
@@ -632,7 +638,7 @@
         // --- Event Listeners ---
 
         gimmeScaleButton.addEventListener('click', () => {
-            // No longer directly starting audio context here, it's handled by demonstrationButton
+            console.log("Gimme Scale button clicked!"); // Added log
             if (isPlayingDemo) {
                 toggleDemonstration();
             }
@@ -657,6 +663,7 @@
         });
 
         togglePracticeModeButton.addEventListener('click', () => {
+            console.log("Toggle Practice Mode button clicked!"); // Added log
             isPracticeMode = !isPracticeMode;
             if (isPracticeMode) {
                 gimmeScaleButton.classList.add('hidden');
