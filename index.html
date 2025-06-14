@@ -310,8 +310,91 @@
 
 
     <script>
-        // Global variable to store the selected minor type for grades 2-5
+        // UI Element References
+        const mainTitle = document.getElementById('mainTitle');
+        const gradeSelectionScreen = document.getElementById('gradeSelectionScreen');
+        const gradeButtonsContainer = document.getElementById('gradeButtonsContainer');
+        const practiceScreen = document.getElementById('practiceScreen');
+        const scaleDisplay = document.getElementById('scaleDisplay');
+        const gimmeScaleButton = document.getElementById('gimmeScaleButton');
+        const togglePracticeModeButton = document.getElementById('togglePracticeModeButton');
+        const bpmSlider = document.getElementById('bpmSlider');
+        const bpmValueDisplay = document.getElementById('bpmValueDisplay');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const volumeValueDisplay = document.getElementById('volumeValueDisplay');
+        const allScalesListContainer = document.getElementById('allScalesList');
+        const actionContainer = document.getElementById('actionContainer');
+        const demonstrationButton = document.getElementById('demonstrationButton');
+        const starRatingContainer = document.getElementById('starRatingContainer');
+        const stars = document.querySelectorAll('.star-rating .star');
+        const congratulationsModal = document.getElementById('congratulationsModal');
+        const closeModalButton = document.getElementById('closeModalButton');
+        const modalScalesList = document.getElementById('modalScalesList');
+        const backToGradesButton = document.getElementById('backToGradesButton');
+        const minorSelectionModal = document.getElementById('minorSelectionModal');
+        const harmonicButton = document.getElementById('harmonicButton');
+        const melodicButton = document.getElementById('melodicButton');
+        const closeMinorSelectionModalButton = document.getElementById('closeMinorSelectionModalButton');
+        const helpIcon = document.getElementById('helpIcon');
+        const helpModal = document.getElementById('helpModal');
+        const closeHelpModalButton = document.getElementById('closeHelpModalButton');
+
+        // Tone.js Setup
+        const synth = new Tone.PolySynth(Tone.Synth, {
+            maxPolyphony: 8, // Explicitly setting max voices
+            envelope: {
+                attack: 0.05, // Slightly increased attack
+                decay: 0.3,
+                sustain: 0.1,
+                release: 0.5, // Slightly increased release
+            },
+            oscillator: {
+                type: "triangle" // Reverted oscillator type to triangle
+            }
+        }).toDestination();
+
+        Tone.Transport.bpm.value = bpmSlider.value;
+        Tone.Destination.volume.value = 0; // Set initial volume for Tone.js to 0dB (corresponds to 100% on slider)
+
+        // Global variables
         let selectedMinorType = 'harmonic'; // Default to harmonic
+        let currentAllScales = []; // This will hold the FULL list of scales for the currently selected grade (objects)
+        let scaleRatings = {}; // Ratings for the current grade
+        let availableScales = []; // This will hold the currently FILTERED and available scales for random selection (objects)
+        let previousScale = null; // Stores the previously played scale object for anti-repetition
+        let currentScaleSelected = null; // Stores the NAME of the currently selected scale string
+        let isFirstRandomRoundCompleted = false;
+        let audioContextStarted = false;
+        let isPlayingDemo = false;
+        let isPracticeMode = false;
+        let currentGrade = null; // Stores the currently selected grade string
+
+        // Diagnostic check: Verify Tone.Midi() conversion
+        console.log(`DIAGNOSTIC: Tone.Midi(64).toNote() returns: ${Tone.Midi(64).toNote()}`);
+        console.log(`DIAGNOSTIC: Tone.Midi(0).toNote() returns: ${Tone.Midi(0).toNote()}`); // Added check for C0
+
+
+        // --- Note Mapping for Sharps and Flats ---
+        const noteMap = {
+            "C": 0, "C#": 1, "DB": 1,
+            "D": 2, "D#": 3, "EB": 3,
+            "E": 4, "F": 5, "F#": 6, "GB": 6,
+            "G": 7, "G#": 8, "AB": 8,
+            "A": 9, "A#": 10, "BB": 10,
+            "B": 11
+        };
+
+        const noteNamesByIndex = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
+        // Define intervals for different scale types
+        const scaleIntervals = {
+            'major': [0, 2, 4, 5, 7, 9, 11],
+            'natural minor': [0, 2, 3, 5, 7, 8, 10],
+            'harmonic minor': [0, 2, 3, 5, 7, 8, 11],
+            'melodic minor_ascending': [0, 2, 3, 5, 7, 9, 11],
+            'melodic minor_descending': [0, 2, 3, 5, 7, 8, 10], // This is equivalent to natural minor for melodic minor descent
+            'chromatic': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        };
 
         // --- Grade-specific Scale Data ---
         // Each scale is an object with 'name' and 'startNote' properties.
@@ -383,37 +466,33 @@
                 { name: "Chromatic Scale on Eb - 2 octaves", startNote: "Eb3" },
                 { name: "Dominant 7th in G - 2 octaves", startNote: "D3" },
                 { name: "Diminished 7th on C - 2 octaves", startNote: "C3" },
-                { name: "Double Stopping Tetrachord - C Major in 6ths, in broken steps", startNote: "C3", playbackRule: 'brokenSteps' }
+                { name: "Double Stopping Tetrachord - C Major in 6ths, in broken steps", startNote: "C3", playbackRule: 'brokenStepsTetrachord6ths' }
             ],
             'Grade 7': [
-                { name: "Eb major scale - 3 octaves", startNote: "Eb4" },
-                { name: "F# harmonic minor scale - 3 octaves", startNote: "F#4", minorType: 'harmonic' },
-                { name: "F# melodic minor scale - 3 octaves", startNote: "F#4", minorType: 'melodic' },
-                { name: "Eb melodic minor scale - 3 octaves", startNote: "Eb4", minorType: 'melodic' },
-                { name: "Eb harmonic minor scale - 3 octaves", startNote: "Eb4", minorType: 'harmonic' },
-                { name: "Eb major arpeggio - 3 octaves", startNote: "Eb4" },
-                { name: "F# minor arpeggio - 3 octaves", startNote: "F#4" },
-                { name: "Eb minor arpeggio - 3 octaves", startNote: "Eb4" },
-                { name: "Chromatic Scale on G - 3 octaves", startNote: "G3" },
-                { name: "Dominant 7th in C - 2 octaves", startNote: "G3" },
-                { name: "Diminished 7th on F# - 2 octaves", startNote: "F#4" },
-                { name: "G major scale in 6ths - 2 octaves", startNote: "B3" },
-                { name: "Bb Major Tetrachord in octaves", startNote: "Bb3" }
+                { name: "E major scale - 3 octaves", startNote: "E3" },
+                { name: "G harmonic minor scale - 3 octaves", startNote: "G3", minorType: 'harmonic' },
+                { name: "E melodic minor scale - 3 octaves", startNote: "E3", minorType: 'melodic' },
+                { name: "E major arpeggio - 3 octaves", startNote: "E3" },
+                { name: "G minor arpeggio - 3 octaves", startNote: "G3" },
+                { name: "E minor arpeggio - 3 octaves", startNote: "E3" },
+                { name: "Chromatic Scale on D - 3 octaves", startNote: "D3" },
+                { name: "Dominant 7th in Eb - 2 octaves", startNote: "Bb4" },
+                { name: "Diminished 7th on D - 2 octaves", startNote: "D3" },
+                { name: "Double Stopping C major scale in 6ths - 2 octaves", startNote: "E3", playbackRule: 'brokenStepsFullScale6ths' }, // Changed startNote to E3
+                { name: "E Major Tetrachord in octaves", startNote: "E4", playbackRule: 'brokenStepsTetrachordOctaves' } // Changed startNote to E4
             ],
             'Grade 8': [
-                { name: "F major scale - 3 octaves", startNote: "F4" },
-                { name: "C# harmonic minor scale - 3 octaves", startNote: "C#3", minorType: 'harmonic' },
-                { name: "C# melodic minor scale - 3 octaves", startNote: "C#3", minorType: 'melodic' },
-                { name: "Bb melodic minor scale - 3 octaves", startNote: "Bb3", minorType: 'melodic' },
-                { name: "Bb harmonic minor scale - 3 octaves", startNote: "Bb3", minorType: 'harmonic' },
-                { name: "F major arpeggio - 3 octaves", startNote: "F4" },
-                { name: "C# minor arpeggio - 3 octaves", startNote: "C#3" },
-                { name: "Bb minor arpeggio - 3 octaves", startNote: "Bb3" },
-                { name: "Chromatic Scale on A - 3 octaves", startNote: "A3" },
-                { name: "Dominant 7th in Ab - 2 octaves", startNote: "Eb4" },
-                { name: "Diminished 7th on D - 2 octaves", startNote: "D4" },
-                { name: "C minor scale in 6ths - 2 octaves", startNote: "Eb3" },
-                { name: "Db Major Tetrachord in octaves", startNote: "Db3" }
+                { name: "Ab Major Scale - 3 Octaves", startNote: "Ab3" },
+                { name: "C# Melodic Minor Scale - 3 octaves", startNote: "C#3", minorType: 'melodic' },
+                { name: "Ab Harmonic Minor Scale - 3 Octaves", startNote: "Ab3", minorType: 'harmonic' },
+                { name: "Ab Major Arpeggio - 3 Octaves", startNote: "Ab3" },
+                { name: "Ab Minor Arpeggio - 3 Octaves", startNote: "Ab3" },
+                { name: "Chromatic Scale on Db - 3 octaves", startNote: "Db3" },
+                { name: "Dominant 7th in Bb - 3 octaves", startNote: "F3" }, // Bb dominant 7th starts on F
+                { name: "Diminished 7th on A - 3 octaves", startNote: "A3" }, // Corrected start note to A3
+                { name: "Double stopping C Major in 6ths", startNote: "E3", playbackRule: 'simultaneousSixthsCMajor' },
+                { name: "Double stopping E Major in octaves (broken steps), 1 octave", startNote: "E4", playbackRule: 'brokenStepsOctavesEMajor' },
+                { name: "Double stopping Eb major scale in 3rds (broken steps), 1 octave", startNote: "Eb3", playbackRule: 'brokenStepsThirdsEbMajor' }
             ]
         };
 
@@ -468,107 +547,38 @@
                 'melodic minor': { bpm: 72, displayTempo: 'Crotchet = 72bpm' },
                 'arpeggio': { bpm: 100, displayTempo: 'Quaver = 100bpm' },
                 'dominant 7th': { bpm: 68, displayTempo: 'Crotchet = 68bpm (Quaver = 136bpm)' },
-                'diminished 7th': { bpm: 68, displayTempo: 'Crotchet = 68bpm (Quaver = 136bpm)' },
-                'chromatic': { bpm: 84, displayTempo: 'Crotchet = 84bpm' }, // Updated to Crotchet = 84bpm (no triplets)
-                'scale in 6ths': { bpm: 68, displayTempo: 'Crotchet = 68bpm' }, // Base tempo for Broken Steps, also for display
-                'tetrachord in 6ths': { bpm: 68, displayTempo: 'Crotchet = 68bpm' }, // Explicit for this type
-                'tetrachord in octaves': { bpm: 68, displayTempo: 'Crotchet = 68bpm' } // Kept for other grades potentially
+                'diminished 7th': { bpm: 68, displayTempo: 'Quaver = 136bpm' },
+                'chromatic': { bpm: 84, displayTempo: 'Crotchet = 84bpm' },
+                'brokenStepsTetrachord6ths': { bpm: 84, displayTempo: 'Crotchet = 84bpm (Crotchet, Crotchet, Minim)' }
             },
             'Grade 7': {
-                'major': { bpm: 72, displayTempo: 'Crotchet = 72bpm' },
-                'natural minor': { bpm: 72, displayTempo: 'Crotchet = 72bpm' },
-                'harmonic minor': { bpm: 72, displayTempo: 'Crotchet = 72bpm' },
-                'melodic minor': { bpm: 72, displayTempo: 'Crotchet = 72bpm' },
-                'arpeggio': { bpm: 104, displayTempo: 'Quaver = 104bpm' },
-                'chromatic': { bpm: 62, displayTempo: 'Crotchet = 62bpm (triplets)' },
-                'dominant 7th': { bpm: 112, displayTempo: 'Quaver = 112bpm' },
-                'diminished 7th': { bpm: 112, displayTempo: 'Quaver = 112bpm' },
-                'scale in 6ths': { bpm: 72, displayTempo: 'Crotchet = 72bpm' },
-                'tetrachord in octaves': { bpm: 72, displayTempo: 'Crotchet = 72bpm' }
+                'major': { bpm: 80, displayTempo: 'Crotchet = 80bpm' },
+                'natural minor': { bpm: 80, displayTempo: 'Crotchet = 80bpm' },
+                'harmonic minor': { bpm: 80, displayTempo: 'Crotchet = 80bpm' },
+                'melodic minor': { bpm: 80, displayTempo: 'Crotchet = 80bpm' },
+                'arpeggio': { bpm: 111, displayTempo: 'Quaver = 111bpm (Dotted Crotchet = 37bpm)' },
+                'chromatic': { bpm: 92, displayTempo: 'Quaver = 92bpm' },
+                'dominant 7th': { bpm: 68, displayTempo: 'Quaver = 68bpm' },
+                'diminished 7th': { bpm: 68, displayTempo: 'Quaver = 68bpm' },
+                'brokenStepsFullScale6ths': { bpm: 84, displayTempo: 'Crotchet = 84bpm (Crotchet, Crotchet, Minim)' },
+                'brokenStepsTetrachordOctaves': { bpm: 84, displayTempo: 'Crotchet = 84bpm (Crotchet, Crotchet, Minim)' }
             },
             'Grade 8': {
-                'major': { bpm: 76, displayTempo: 'Crotchet = 76bpm' },
-                'natural minor': { bpm: 76, displayTempo: 'Crotchet = 76bpm' },
-                'harmonic minor': { bpm: 76, displayTempo: 'Crotchet = 76bpm' },
-                'melodic minor': { bpm: 76, displayTempo: 'Crotchet = 76bpm' },
-                'arpeggio': { bpm: 108, displayTempo: 'Quaver = 108bpm' },
-                'chromatic': { bpm: 66, displayTempo: 'Crotchet = 66bpm (triplets)' },
-                'dominant 7th': { bpm: 116, displayTempo: 'Quaver = 116bpm' },
-                'diminished 7th': { bpm: 116, displayTempo: 'Quaver = 116bpm' },
-                'scale in 6ths': { bpm: 76, displayTempo: 'Crotchet = 76bpm' },
-                'tetrachord in octaves': { bpm: 76, displayTempo: 'Crotchet = 76bpm' }
+                'major': { bpm: 92, displayTempo: 'Crotchet = 92bpm' },
+                'natural minor': { bpm: 92, displayTempo: 'Crotchet = 92bpm' }, // Assuming natural minor uses same bpm as major/harmonic/melodic
+                'harmonic minor': { bpm: 92, displayTempo: 'Crotchet = 92bpm' },
+                'melodic minor': { bpm: 92, displayTempo: 'Crotchet = 92bpm' },
+                'arpeggio': { bpm: 108, displayTempo: 'Quaver = 108bpm (Dotted Crotchet = 37bpm)' }, // Corrected BPM and display
+                'chromatic': { bpm: 114, displayTempo: 'Quaver = 114bpm' },
+                'dominant 7th': { bpm: 68, displayTempo: 'Quaver = 68bpm' },
+                'diminished 7th': { bpm: 68, displayTempo: 'Quaver = 68bpm' },
+                'simultaneousSixthsCMajor': { bpm: 72, displayTempo: 'Crotchet = 72bpm (Minim, Crotchet)' }, // Specific rule for C Major 6ths
+                'brokenStepsOctavesEMajor': { bpm: 92, displayTempo: 'Crotchet = 92bpm (Broken Steps)' }, // Specific rule for E Major Octaves
+                'brokenStepsThirdsEbMajor': { bpm: 92, displayTempo: 'Crotchet = 92bpm (Broken Steps)' } // Specific rule for Eb Major 3rds
             }
         };
 
-
-        let currentAllScales = []; // This will hold the FULL list of scales for the currently selected grade (objects)
-        let scaleRatings = {}; // Ratings for the current grade
-        let availableScales = []; // This will hold the currently FILTERED and available scales for random selection (objects)
-        let previousScale = null; // Stores the previously played scale object for anti-repetition
-        let currentScaleSelected = null; // Stores the NAME of the currently selected scale string
-        let isFirstRandomRoundCompleted = false;
-        let audioContextStarted = false;
-        let isPlayingDemo = false;
-        let isPracticeMode = false;
-        let currentGrade = null; // Stores the currently selected grade string
-
-        // UI Element References
-        const mainTitle = document.getElementById('mainTitle');
-        const gradeSelectionScreen = document.getElementById('gradeSelectionScreen');
-        const gradeButtonsContainer = document.getElementById('gradeButtonsContainer');
-        const practiceScreen = document.getElementById('practiceScreen');
-        const scaleDisplay = document.getElementById('scaleDisplay');
-        const gimmeScaleButton = document.getElementById('gimmeScaleButton');
-        const togglePracticeModeButton = document.getElementById('togglePracticeModeButton');
-        const bpmSlider = document.getElementById('bpmSlider');
-        const bpmValueDisplay = document.getElementById('bpmValueDisplay');
-        const volumeSlider = document.getElementById('volumeSlider'); // New
-        const volumeValueDisplay = document.getElementById('volumeValueDisplay'); // New
-        const allScalesListContainer = document.getElementById('allScalesList');
-        const actionContainer = document.getElementById('actionContainer');
-        const demonstrationButton = document.getElementById('demonstrationButton');
-        const starRatingContainer = document.getElementById('starRatingContainer');
-        const stars = document.querySelectorAll('.star-rating .star');
-        const congratulationsModal = document.getElementById('congratulationsModal');
-        const closeModalButton = document.getElementById('closeModalButton');
-        const modalScalesList = document.getElementById('modalScalesList');
-        const backToGradesButton = document.getElementById('backToGradesButton');
-        const minorSelectionModal = document.getElementById('minorSelectionModal');
-        const harmonicButton = document.getElementById('harmonicButton');
-        const melodicButton = document.getElementById('melodicButton');
-        const closeMinorSelectionModalButton = document.getElementById('closeMinorSelectionModalButton');
-        const helpIcon = document.getElementById('helpIcon'); // New
-        const helpModal = document.getElementById('helpModal'); // New
-        const closeHelpModalButton = document.getElementById('closeHelpModalButton'); // New
-
-        // Tone.js Setup
-        const synth = new Tone.PolySynth(Tone.Synth, {
-            envelope: {
-                attack: 0.02,   // Quick attack for immediate sound
-                decay: 0.3,     // Moderate decay to the sustain level
-                sustain: 0.1,   // Hold sound at 10% volume after decay
-                release: 0.3,   // Fade out over 0.3 seconds after the note ends
-            },
-            oscillator: {
-                type: "triangle"
-            }
-        }).toDestination();
-
-        Tone.Transport.bpm.value = bpmSlider.value;
-        Tone.Destination.volume.value = 0; // Set initial volume for Tone.js to 0dB (corresponds to 100% on slider)
-        let currentSequence = null;
-
-        // --- Note Mapping for Sharps and Flats ---
-        const noteMap = {
-            "C": 0, "C#": 1, "DB": 1,
-            "D": 2, "D#": 3, "EB": 3,
-            "E": 4, "F": 5, "F#": 6, "GB": 6,
-            "G": 7, "G#": 8, "AB": 8,
-            "A": 9, "A#": 10, "BB": 10,
-            "B": 11
-        };
-
-        const noteNamesByIndex = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        // --- Function Definitions ---
 
         /**
          * Converts a note string (e.g., "C#", "Eb") to its MIDI pitch class index (0-11).
@@ -585,16 +595,6 @@
             if (upperCaseNote.startsWith("BB")) return noteMap["A#"]; // Bb is enharmonic to A#
             return noteMap[upperCaseNote] !== undefined ? noteMap[upperCaseNote] : -1;
         }
-
-        // Define intervals for different scale types
-        const scaleIntervals = {
-            'major': [0, 2, 4, 5, 7, 9, 11],
-            'natural minor': [0, 2, 3, 5, 7, 8, 10],
-            'harmonic minor': [0, 2, 3, 5, 7, 8, 11],
-            'melodic minor_ascending': [0, 2, 3, 5, 7, 9, 11],
-            'melodic minor_descending': [0, 2, 3, 5, 7, 8, 10], // This is equivalent to natural minor for melodic minor descent
-            'chromatic': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-        };
 
         /**
          * Parses the scale name string to extract root, type, and octaves.
@@ -639,10 +639,10 @@
                 const octavesMatch = lowerCaseName.match(/(\d)\s*octaves?/);
                 if (octavesMatch) octaves = parseInt(octavesMatch[1]);
                 else octaves = 2; // Default for this type if not explicitly mentioned
-            } else if (lowerCaseName.includes("scale in 6ths")) {
+            } else if (lowerCaseName.includes("scale in 6ths") && !lowerCaseName.includes("double stopping")) { // Exclude specific double stopping
                 root = parts[0].toUpperCase();
                 type = 'scale in 6ths';
-            } else if (lowerCaseName.includes("tetrachord in octaves")) {
+            } else if (lowerCaseName.includes("tetrachord in octaves") && !lowerCaseName.includes("double stopping")) { // Exclude specific double stopping
                 root = parts[0].toUpperCase();
                 type = 'tetrachord in octaves';
                 octaves = 1;
@@ -655,7 +655,20 @@
                     return null;
                 }
                 type = 'chromatic';
-            } else {
+            } else if (lowerCaseName.includes("double stopping c major in 6ths") && !lowerCaseName.includes("broken steps")) {
+                root = 'C';
+                type = 'double stopping';
+                octaves = 2; // Fixed 2 octaves for this scale
+            } else if (lowerCaseName.includes("double stopping e major in octaves (broken steps)")) {
+                root = 'E';
+                type = 'double stopping';
+                octaves = 1; // Fixed 1 octave for this scale
+            } else if (lowerCaseName.includes("double stopping eb major scale in 3rds (broken steps)")) {
+                root = 'Eb';
+                type = 'double stopping';
+                octaves = 1; // Fixed 1 octave for this scale
+            }
+            else {
                 root = parts[0].toUpperCase();
                 if (lowerCaseName.includes("major scale")) type = 'major';
                 else if (lowerCaseName.includes("harmonic minor scale")) type = 'harmonic minor';
@@ -678,6 +691,77 @@
         }
 
         /**
+         * Calculates the MIDI note of a diatonic 6th above a given lower MIDI note in a C Major context.
+         * @param {number} lowerMidiNote - The MIDI value of the lower note.
+         * @returns {number} The MIDI value of the upper note forming a diatonic 6th.
+         */
+        function getDiatonic6thAboveCMajor(lowerMidiNote) {
+            const cMajorScaleIntervals = [0, 2, 4, 5, 7, 9, 11]; // Intervals from C to C, D, E, F, G, A, B
+            const lowerNotePitchClass = lowerMidiNote % 12; // Pitch class (0-11)
+            const baseOctave = Math.floor(lowerMidiNote / 12);
+
+            let lowerNoteScaleIndex = -1;
+            for (let i = 0; i < cMajorScaleIntervals.length; i++) {
+                if (cMajorScaleIntervals[i] === lowerNotePitchClass) {
+                    lowerNoteScaleIndex = i;
+                    break;
+                }
+            }
+
+            if (lowerNoteScaleIndex === -1) {
+                console.warn(`Note ${Tone.Midi(lowerMidiNote).toNote()} is not diatonic to C Major. Falling back to Major 6th.`);
+                return lowerMidiNote + 9; // Fallback to a generic Major 6th (9 semitones)
+            }
+
+            const sixthNoteScaleIndex = (lowerNoteScaleIndex + 5) % cMajorScaleIntervals.length;
+            const octaveShift = Math.floor((lowerNoteScaleIndex + 5) / cMajorScaleIntervals.length);
+
+            const upperMidiNote = (baseOctave + octaveShift) * 12 + cMajorScaleIntervals[sixthNoteScaleIndex];
+            return upperMidiNote;
+        }
+
+        /**
+         * Calculates the MIDI note of a diatonic interval above a given lower MIDI note in a specified major scale.
+         * Assumes input lowerMidiNote is valid and is a member of the specified scale.
+         * @param {number} lowerMidiNote - The MIDI value of the lower note.
+         * @param {string} scaleRoot - The root of the major scale (e.g., "C", "E", "Eb").
+         * @param {number} intervalDegrees - The number of scale degrees above the lower note (e.g., 2 for a 3rd, 5 for a 6th).
+         * @returns {number} The MIDI value of the upper note forming the diatonic interval.
+         */
+        function getDiatonicIntervalAboveMajor(lowerMidiNote, scaleRoot, intervalDegrees) {
+            const majorScaleIntervals = [0, 2, 4, 5, 7, 9, 11]; // Intervals from root to root in a major scale
+            const rootPitchClass = getNoteIndex(scaleRoot);
+
+            const oneOctaveScalePcs = [];
+            for (const interval of majorScaleIntervals) {
+                oneOctaveScalePcs.push((rootPitchClass + interval) % 12);
+            }
+            oneOctaveScalePcs.sort((a,b)=>a-b); // Ensure sorted for consistent indexing
+
+            const lowerNotePitchClass = lowerMidiNote % 12;
+            const baseOctave = Math.floor(lowerMidiNote / 12);
+
+            let lowerNoteScaleIndex = oneOctaveScalePcs.indexOf(lowerNotePitchClass);
+
+            if (lowerNoteScaleIndex === -1) {
+                console.warn(`Note ${Tone.Midi(lowerMidiNote).toNote()} (pitch class ${lowerNotePitchClass}) is not diatonic to ${scaleRoot} Major scale. Cannot calculate diatonic interval. Falling back to chromatic interval.`);
+                // Fallback to chromatic interval (e.g., Major 3rd is 4 semitones, Major 6th is 9 semitones)
+                return lowerMidiNote + (intervalDegrees === 2 ? 4 : (intervalDegrees === 5 ? 9 : 0)); // Default to 0 if unknown
+            }
+
+            const targetScaleIndex = lowerNoteScaleIndex + intervalDegrees;
+
+            // Determine octave shift if the target note goes into the next octave of the scale
+            const finalOctaveShift = Math.floor(targetScaleIndex / oneOctaveScalePcs.length);
+            const finalPitchClassIndexInScale = targetScaleIndex % oneOctaveScalePcs.length;
+            const finalPitchClass = oneOctaveScalePcs[finalPitchClassIndexInScale];
+
+            const upperMidiNote = (baseOctave + finalOctaveShift) * 12 + finalPitchClass;
+            return upperMidiNote;
+        }
+
+
+        /**
          * Generates an array of Tone.js note sequences, including notes and their durations.
          * For scales (major, minors), applies "long tonics". Other types have standard durations.
          * @param {object} scaleObj - An object containing 'name', 'startNote', and optionally 'playbackRule'.
@@ -694,16 +778,14 @@
             let sequenceData = [];
 
             const initialBaseMidi = Tone.Midi(startingViolaNote).toMidi();
-            const rootNoteOnly = startingViolaNote.match(/^[A-G][b#]*/i)[0];
+            const rootNoteOnly = root; // Use the parsed root for tonic determination
             const initialRootPitchClass = getNoteIndex(rootNoteOnly);
 
             // Helper to determine if a note is a tonic relative to the initial root pitch class
             const isScaleTonic = (midiNote) => {
-                // Ensure midiNote is a number (can be string from Tone.Midi(...).toNote() then toMidi())
-                if (typeof midiNote === 'string') {
-                    midiNote = Tone.Midi(midiNote).toMidi();
-                }
-                return (midiNote % 12) === initialRootPitchClass;
+                // If it's already a MIDI number, use it directly. If it's a string, convert.
+                const midiVal = typeof midiNote === 'string' ? Tone.Midi(midiNote).toMidi() : midiNote;
+                return (midiVal % 12) === initialRootPitchClass;
             };
 
             let baseNoteDuration = '8n'; // Default to quavers for most scales and arpeggios
@@ -711,135 +793,372 @@
 
             // Special cases for baseNoteDuration before main logic
             if (type === 'arpeggio') {
-                baseNoteDuration = '4n'; // Crotchets for arpeggios
+                baseNoteDuration = '8n'; // Arpeggio notes are quavers, as per Grade 8 syllabus details
             } else if (type === 'chromatic') {
                 baseNoteDuration = '8n'; // Chromatic scale notes are quavers
             }
 
-            if (scaleObj.playbackRule === 'brokenSteps') {
-                let generatedPairs = [];
-                // For "C Major in 6ths", the starting pitches are E3 (lower) and C4 (upper).
-                const lowerTetrachordNotesMidi = [
-                    Tone.Midi('E3').toMidi(),  // E3
-                    Tone.Midi('F3').toMidi(),  // F3
-                    Tone.Midi('G3').toMidi(),  // G3
-                    Tone.Midi('A3').toMidi()   // A3
-                ];
-                const upperTetrachordNotesMidi = [
-                    Tone.Midi('C4').toMidi(),  // C4
-                    Tone.Midi('D4').toMidi(),  // D4
-                    Tone.Midi('E4').toMidi(),  // E4
-                    Tone.Midi('F4').toMidi()   // F4
-                ];
-
-                for (let i = 0; i < 4; i++) {
-                    generatedPairs.push([
-                        Tone.Midi(lowerTetrachordNotesMidi[i]).toNote(),
-                        Tone.Midi(upperTetrachordNotesMidi[i]).toNote()
-                    ]);
-                }
-
-                // Apply the 1-2-3-4-4-3-2-1 pattern to these 4 generated pairs
-                const fullSequenceOfPairs = [...generatedPairs]; // Ascending 1-2-3-4
-                fullSequenceOfPairs.push(generatedPairs[generatedPairs.length - 1]); // Repeat 4th pair (highest point)
-                for (let i = generatedPairs.length - 2; i >= 0; i--) { // Descending 3-2-1
-                    fullSequenceOfPairs.push(generatedPairs[i]);
-                }
-
-                // Apply broken steps rhythm to each pair in the generated sequence
-                fullSequenceOfPairs.forEach(pair => {
-                    sequenceData.push({ notes: [pair[0]], duration: '4n' });       // Bottom note only (crotchet)
-                    sequenceData.push({ notes: pair, duration: '4n' });             // Both notes (crotchet)
-                    sequenceData.push({ notes: pair, duration: '2n' });             // Both notes (minim)
+            // Common broken step rhythm sequence generation
+            // This function will take an array of MIDI notes (single notes or [lower, upper] pairs)
+            // and apply the broken step rhythm, converting to note strings for Tone.js.
+            const applyBrokenStepRhythm = (notesAndPairsMidiArray) => {
+                let currentSequenceChunk = [];
+                notesAndPairsMidiArray.forEach(item => {
+                    if (Array.isArray(item)) { // It's a pair of MIDI notes (e.g., for 3rds or 6ths)
+                        const lowerNoteStr = Tone.Midi(item[0]).toNote();
+                        const upperNoteStr = Tone.Midi(item[1]).toNote();
+                        currentSequenceChunk.push({ notes: [lowerNoteStr], duration: '4n' }); // Bottom note only (crotchet)
+                        currentSequenceChunk.push({ notes: [lowerNoteStr, upperNoteStr], duration: '4n' });     // Both notes (crotchet)
+                        currentSequenceChunk.push({ notes: [lowerNoteStr, upperNoteStr], duration: '2n' });     // Both notes (minim)
+                    } else { // It's a single MIDI note (for octaves)
+                        const singleNoteStr = Tone.Midi(item).toNote();
+                        const octaveNoteStr = Tone.Midi(item + 12).toNote(); // Octave note as string
+                        currentSequenceChunk.push({ notes: [singleNoteStr], duration: '4n' }); // Single note (crotchet)
+                        currentSequenceChunk.push({ notes: [singleNoteStr, octaveNoteStr], duration: '4n' }); // Octave pair (crotchet)
+                        currentSequenceChunk.push({ notes: [singleNoteStr, octaveNoteStr], duration: '2n' }); // Octave pair (minim)
+                    }
                 });
+                return currentSequenceChunk;
+            };
 
-                return sequenceData; // Return immediately after handling this special case
+            // Helper to get actual pitch classes for a major scale given a root pitch class
+            function getMajorScalePitchClasses(rootPc) {
+                const majorIntervals = [0, 2, 4, 5, 7, 9, 11];
+                return majorIntervals.map(interval => (rootPc + interval) % 12);
             }
 
-            // --- Main scale/arpeggio generation logic for Major/Minor scales ---
+
+            if (scaleObj.playbackRule === 'simultaneousSixthsCMajor') {
+                const lowerVoiceStartMidi = Tone.Midi(startingViolaNote).toMidi(); // E3 for Grade 8 C Major 6ths
+                const numOctaves = 2; // For C Major 6ths, it's 2 octaves
+
+                const lowerVoiceScaleMidi = [];
+                let tempMidi = lowerVoiceStartMidi;
+                const cRootPc = getNoteIndex('C');
+                const cMajorPcs = getMajorScalePitchClasses(cRootPc);
+
+                const getNextCMajorDiatonicNote = (currentMidi) => {
+                    let nextMidi = currentMidi + 1;
+                    while (true) {
+                        const nextPc = nextMidi % 12;
+                        if (cMajorPcs.includes(nextPc)) {
+                            return nextMidi;
+                        }
+                        nextMidi++;
+                        if (nextMidi > currentMidi + 12) {
+                            console.error("Couldn't find next C Major diatonic note.");
+                            return -1;
+                        }
+                    }
+                };
+
+                tempMidi = lowerVoiceStartMidi;
+                while (tempMidi <= Tone.Midi('E5').toMidi()) {
+                    lowerVoiceScaleMidi.push(tempMidi);
+                    if (tempMidi === Tone.Midi('E5').toMidi()) break;
+                    tempMidi = getNextCMajorDiatonicNote(tempMidi);
+                    if (tempMidi === -1) break;
+                }
+
+                let simultaneousPairs = [];
+                lowerVoiceScaleMidi.forEach((lowerMidi) => {
+                    const upperMidi = getDiatonicIntervalAboveMajor(lowerMidi, 'C', 5); // Diatonic 6th in C Major
+                    simultaneousPairs.push([lowerMidi, upperMidi]);
+                });
+
+                simultaneousPairs.forEach((pair, index) => {
+                    const duration = (index === 0 || index === simultaneousPairs.length - 1) ? '2n' : '4n';
+                    sequenceData.push({ notes: [Tone.Midi(pair[0]).toNote(), Tone.Midi(pair[1]).toNote()], duration: duration });
+                });
+
+                const descendingPairs = [...simultaneousPairs].reverse();
+                if (descendingPairs.length > 0) {
+                    descendingPairs.shift();
+                }
+
+                descendingPairs.forEach((pair, index) => {
+                    const duration = (index === descendingPairs.length - 1) ? '2n' : '4n';
+                    sequenceData.push({ notes: [Tone.Midi(pair[0]).toNote(), Tone.Midi(pair[1]).toNote()], duration: duration });
+                });
+
+                return sequenceData;
+
+            } else if (scaleObj.playbackRule === 'brokenStepsOctavesEMajor') {
+                const startMidi = Tone.Midi(startingViolaNote).toMidi(); // E4
+                const numOctaves = 1;
+                const topMidiInScale = startMidi + (numOctaves * 12); // E5
+
+                const eMajorScaleNotesMidi = [];
+                let tempMidi = startMidi;
+                const eRootPc = getNoteIndex('E');
+                const eMajorPcs = getMajorScalePitchClasses(eRootPc);
+
+                const getNextEMajorDiatonicNote = (currentMidi) => {
+                    let nextMidi = currentMidi + 1;
+                    while (true) {
+                        const nextPc = nextMidi % 12;
+                        if (eMajorPcs.includes(nextPc)) {
+                            return nextMidi;
+                        }
+                        nextMidi++;
+                        if (nextMidi > currentMidi + 12) {
+                            console.error("Couldn't find next E Major diatonic note.");
+                            return -1;
+                        }
+                    }
+                };
+
+                while (tempMidi <= topMidiInScale) {
+                    eMajorScaleNotesMidi.push(tempMidi);
+                    if (tempMidi === topMidiInScale) break;
+                    tempMidi = getNextEMajorDiatonicNote(tempMidi);
+                    if (tempMidi === -1) break;
+                }
+
+                sequenceData.push(...applyBrokenStepRhythm(eMajorScaleNotesMidi));
+
+                const descendingNotesMidi = [...eMajorScaleNotesMidi].reverse();
+                if (descendingNotesMidi.length > 0) {
+                    descendingNotesMidi.shift();
+                }
+                sequenceData.push(...applyBrokenStepRhythm(descendingNotesMidi));
+
+                return sequenceData;
+
+            } else if (scaleObj.playbackRule === 'brokenStepsThirdsEbMajor') {
+                const startMidi = Tone.Midi(startingViolaNote).toMidi(); // Eb3
+                const numOctaves = 1;
+                const topMidiInScale = startMidi + (numOctaves * 12); // Eb4
+
+                const ebMajorScaleNotesMidi = [];
+                let tempMidi = startMidi;
+                const ebRootPc = getNoteIndex('Eb');
+                const ebMajorPcs = getMajorScalePitchClasses(ebRootPc);
+
+                const getNextEbMajorDiatonicNote = (currentMidi) => {
+                    let nextMidi = currentMidi + 1;
+                    while (true) {
+                        const nextPc = nextMidi % 12;
+                        if (ebMajorPcs.includes(nextPc)) {
+                            return nextMidi;
+                        }
+                        nextMidi++;
+                        if (nextMidi > currentMidi + 12) {
+                            console.error("Couldn't find next Eb Major diatonic note.");
+                            return -1;
+                        }
+                    }
+                };
+
+                while (tempMidi <= topMidiInScale) {
+                    ebMajorScaleNotesMidi.push(tempMidi);
+                    if (tempMidi === topMidiInScale) break;
+                    tempMidi = getNextEbMajorDiatonicNote(tempMidi);
+                    if (tempMidi === -1) break;
+                }
+
+                let ascendingPairs = [];
+                ebMajorScaleNotesMidi.forEach((lowerMidi) => {
+                    const upperMidi = getDiatonicIntervalAboveMajor(lowerMidi, 'Eb', 2); // Diatonic 3rd in Eb Major
+                    ascendingPairs.push([lowerMidi, upperMidi]);
+                });
+
+                sequenceData.push(...applyBrokenStepRhythm(ascendingPairs));
+
+                const descendingPairs = [...ascendingPairs].reverse();
+                if (descendingPairs.length > 0) {
+                    descendingPairs.shift();
+                }
+                sequenceData.push(...applyBrokenStepRhythm(descendingPairs));
+
+                return sequenceData;
+
+            } else if (scaleObj.playbackRule === 'brokenStepsTetrachord6ths') { // Grade 6 Double Stopping Tetrachord - C Major in 6ths, in broken steps
+                // This rule has a hardcoded E3 as the lowest note for the specific tetrachord from syllabus.
+                const lowerTetrachordNotesMidi = [
+                    Tone.Midi('E3').toMidi(), Tone.Midi('F3').toMidi(), Tone.Midi('G3').toMidi(), Tone.Midi('A3').toMidi()
+                ];
+                const upperTetrachordNotesMidi = [
+                    Tone.Midi('C4').toMidi(), Tone.Midi('D4').toMidi(), Tone.Midi('E4').toMidi(), Tone.Midi('F4').toMidi()
+                ];
+
+                let ascendingPairs = [];
+                for (let i = 0; i < lowerTetrachordNotesMidi.length; i++) {
+                    ascendingPairs.push([lowerTetrachordNotesMidi[i], upperTetrachordNotesMidi[i]]);
+                }
+
+                // Apply broken step rhythm to ascending part
+                sequenceData.push(...applyBrokenStepRhythm(ascendingPairs));
+
+                // Descending part
+                const descendingPairs = [...ascendingPairs].reverse().slice(1);
+                sequenceData.push(...applyBrokenStepRhythm(descendingPairs));
+
+                return sequenceData;
+
+            } else if (scaleObj.playbackRule === 'brokenStepsFullScale6ths') { // Grade 7 Double Stopping C major scale in 6ths - 2 octaves
+                const lowerVoiceStartMidi = Tone.Midi(startingViolaNote).toMidi(); // E3
+                const numOctaves = 2;
+                const topMidiInScale = lowerVoiceStartMidi + (numOctaves * 12); // E5
+
+                const lowerVoiceScaleMidi = [];
+                let tempMidi = lowerVoiceStartMidi;
+                const cRootPc = getNoteIndex('C');
+                const cMajorPcs = getMajorScalePitchClasses(cRootPc);
+
+                const getNextCMajorDiatonicNote = (currentMidi) => {
+                    let nextMidi = currentMidi + 1;
+                    while (true) {
+                        const nextPc = nextMidi % 12;
+                        if (cMajorPcs.includes(nextPc)) {
+                            return nextMidi;
+                        }
+                        nextMidi++;
+                        if (nextMidi > currentMidi + 12) {
+                            console.error("Couldn't find next C Major diatonic note.");
+                            return -1;
+                        }
+                    }
+                };
+
+                while (tempMidi <= topMidiInScale) {
+                    lowerVoiceScaleMidi.push(tempMidi);
+                    if (tempMidi === topMidiInScale) break;
+                    tempMidi = getNextCMajorDiatonicNote(tempMidi);
+                    if (tempMidi === -1) break;
+                }
+
+                let ascendingPairs = [];
+                lowerVoiceScaleMidi.forEach(midiNote => {
+                    const upperNoteMidi = getDiatonic6thAboveCMajor(midiNote); // Re-using Grade 6/7 specific helper for consistency
+                    ascendingPairs.push([midiNote, upperNoteMidi]);
+                });
+
+                sequenceData.push(...applyBrokenStepRhythm(ascendingPairs));
+
+                const descendingPairs = [...ascendingPairs].reverse();
+                if (descendingPairs.length > 0) {
+                    descendingPairs.shift();
+                }
+                sequenceData.push(...applyBrokenStepRhythm(descendingPairs));
+
+                return sequenceData;
+
+            } else if (scaleObj.playbackRule === 'brokenStepsTetrachordOctaves') { // Grade 7 E Major Tetrachord in octaves
+                const tetrachordNotesMidi = [
+                    Tone.Midi('E4').toMidi(), Tone.Midi('F#4').toMidi(), Tone.Midi('G#4').toMidi(), Tone.Midi('A4').toMidi()
+                ];
+
+                sequenceData.push(...applyBrokenStepRhythm(tetrachordNotesMidi));
+
+                // Descending part: Reverse the notes, exclude the last note (which is the highest ascending)
+                const descendingNotesMidi = [...tetrachordNotesMidi].reverse().slice(1);
+                sequenceData.push(...applyBrokenStepRhythm(descendingNotesMidi));
+
+                return sequenceData;
+            }
+
+
+            // --- Existing logic for other scale types (single notes or regular arpeggios) ---
             if (['major', 'natural minor', 'harmonic minor'].includes(type)) {
                 const intervals = scaleIntervals[type];
                 let currentMidi = initialBaseMidi;
+                let allNotesMidi = [];
 
                 // Ascending part
                 for (let o = 0; o < octaves; o++) {
                     for (let i = 0; i < intervals.length; i++) {
-                        const noteMidi = currentMidi + intervals[i];
-                        const noteName = Tone.Midi(noteMidi).toNote();
-                        const duration = (o === 0 && i === 0) || (i === 0 && isScaleTonic(noteMidi)) ? longTonicDuration : baseNoteDuration;
-                        sequenceData.push({ notes: [noteName], duration: duration });
+                        // Correctly calculate notes based on initial base and scale intervals
+                        const pitchClassOfInterval = (initialBaseMidi % 12 + intervals[i]) % 12;
+                        const midiNote = (Math.floor(currentMidi / 12) * 12) + pitchClassOfInterval;
+                        allNotesMidi.push(midiNote);
                     }
-                    currentMidi += 12; // Move to the next octave for intervals
+                    currentMidi += 12; // Move to next octave's base
                 }
-                // Add the very top tonic (last note played ascending)
-                sequenceData.push({ notes: [Tone.Midi(initialBaseMidi + (octaves * 12)).toNote()], duration: longTonicDuration });
-
-                // Descending part
-                // Build the full ascending sequence of MIDI notes first to reverse it correctly
-                let fullAscendingMidiNotes = [];
-                let tempMidi = initialBaseMidi;
-                for (let o = 0; o < octaves; o++) {
-                    for (let i = 0; i < intervals.length; i++) {
-                        fullAscendingMidiNotes.push(tempMidi + intervals[i]);
-                    }
-                    tempMidi += 12;
+                // Add the top tonic for the final octave if not already there
+                const finalTonicMidi = initialBaseMidi + (octaves * 12);
+                if (allNotesMidi[allNotesMidi.length - 1] !== finalTonicMidi) {
+                    allNotesMidi.push(finalTonicMidi);
                 }
-                fullAscendingMidiNotes.push(initialBaseMidi + (octaves * 12)); // Add the very top tonic's MIDI
 
-                // Reverse and slice to create the descending sequence (skip the first element which is the highest tonic, already added)
-                const descendingMidiNotesList = [...fullAscendingMidiNotes].reverse().slice(1);
 
+                allNotesMidi.forEach((midiNote, index) => {
+                    const noteName = Tone.Midi(midiNote).toNote(); // Convert to note string here
+                    const duration = (index === 0 || isScaleTonic(midiNote)) ? longTonicDuration : baseNoteDuration;
+                    sequenceData.push({ notes: [noteName], duration: duration }); // Pass note string
+                });
+
+                const descendingMidiNotesList = [...allNotesMidi].reverse().slice(1);
                 descendingMidiNotesList.forEach((midiNote) => {
-                    const noteName = Tone.Midi(midiNote).toNote();
+                    const noteName = Tone.Midi(midiNote).toNote(); // Convert to note string here
                     const duration = isScaleTonic(midiNote) ? longTonicDuration : baseNoteDuration;
-                    sequenceData.push({ notes: [noteName], duration: duration });
+                    sequenceData.push({ notes: [noteName], duration: duration }); // Pass note string
                 });
 
             } else if (type === 'melodic minor') {
                 const ascendingIntervals = scaleIntervals['melodic minor_ascending'];
                 const descendingIntervals = scaleIntervals['melodic minor_descending'];
+                let allAscendingNotesMidi = [];
 
-                // Ascending part
                 let currentAscendingMidi = initialBaseMidi;
                 for (let o = 0; o < octaves; o++) {
                     for (let i = 0; i < ascendingIntervals.length; i++) {
-                        const noteMidi = currentAscendingMidi + ascendingIntervals[i];
-                        const noteName = Tone.Midi(noteMidi).toNote();
-                        // Apply long tonic for the first note of each octave ascending
-                        const duration = (o === 0 && i === 0) || (i === 0 && isScaleTonic(noteMidi)) ? longTonicDuration : baseNoteDuration;
-                        sequenceData.push({ notes: [noteName], duration: duration });
+                        // Correctly calculate notes based on initial base and scale intervals
+                        const pitchClassOfInterval = (initialBaseMidi % 12 + ascendingIntervals[i]) % 12;
+                        const midiNote = (Math.floor(currentAscendingMidi / 12) * 12) + pitchClassOfInterval;
+                        allAscendingNotesMidi.push(midiNote);
                     }
                     currentAscendingMidi += 12;
                 }
-                // Add the very top tonic (last note played ascending)
-                sequenceData.push({ notes: [Tone.Midi(initialBaseMidi + (octaves * 12)).toNote()], duration: longTonicDuration });
+                const finalAscendingTonicMidi = initialBaseMidi + (octaves * 12);
+                if (allAscendingNotesMidi[allAscendingNotesMidi.length - 1] !== finalAscendingTonicMidi) {
+                    allAscendingNotesMidi.push(finalAscendingTonicMidi);
+                }
 
-                // Descending part
-                let descendingMidiNotes = [];
-                // Build full descending sequence of MIDI notes based on octaves and descending intervals
-                for (let o = octaves; o >= 1; o--) { // Iterate from highest octave down to the starting octave
-                    const baseMidiForOctave = initialBaseMidi + ((o - 1) * 12);
-                    for (let i = descendingIntervals.length - 1; i >= 0; i--) { // Iterate intervals in reverse
-                        const noteMidi = baseMidiForOctave + descendingIntervals[i];
-                        // Ensure the note is within the expected range (e.g., not going below the original starting note)
-                        if (noteMidi >= initialBaseMidi && !descendingMidiNotes.includes(noteMidi)) { // Avoid duplicates if any
-                            descendingMidiNotes.push(noteMidi);
+
+                allAscendingNotesMidi.forEach((midiNote, index) => {
+                    const noteName = Tone.Midi(midiNote).toNote(); // Convert to note string here
+                    const duration = (index === 0 || isScaleTonic(midiNote)) ? longTonicDuration : baseNoteDuration;
+                    sequenceData.push({ notes: [noteName], duration: duration });
+                });
+
+                let descendingMidiNotesOnly = [];
+
+                // Start from the top tonic and go down using natural minor intervals,
+                // ensuring the notes are within the correct octave range.
+                let tempDescendingMidi = finalAscendingTonicMidi; // Top note of ascending scale
+                while (tempDescendingMidi >= initialBaseMidi) {
+                    if (tempDescendingMidi !== finalAscendingTonicMidi) { // Exclude the top tonic that was already part of ascending
+                        descendingMidiNotesOnly.push(tempDescendingMidi);
+                    }
+                    // Find previous diatonic step in Natural Minor
+                    let currentPc = tempDescendingMidi % 12;
+                    let foundPrev = false;
+                    for (let i = 1; i <= 12; i++) { // Look for previous note in scale
+                        const prevMidi = tempDescendingMidi - i;
+                        if (prevMidi < initialBaseMidi - 1) break; // Don't go below the lowest note
+                        const prevPc = prevMidi % 12;
+                        // Check if prevPc is diatonic to Natural Minor scale for the root of this melodic minor
+                        const melodicRootPc = initialBaseMidi % 12;
+                        const isPrevInNaturalMinor = scaleIntervals['natural minor'].includes((prevPc - melodicRootPc + 12) % 12);
+
+                        if (isPrevInNaturalMinor) {
+                            tempDescendingMidi = prevMidi;
+                            foundPrev = true;
+                            break;
                         }
                     }
+                    if (!foundPrev && tempDescendingMidi > initialBaseMidi) { // Allow the loop to finish on the root
+                        console.error("Could not find previous diatonic note in Natural Minor for melodic minor descent.");
+                        break;
+                    } else if (!foundPrev && tempDescendingMidi === initialBaseMidi) { // Reached the bottom
+                        break;
+                    }
                 }
+                descendingMidiNotesOnly.reverse(); // Because we added them in reverse order (high to low)
 
-                // The descending melodic minor starts one step below the highest tonic if it's a 3-octave scale.
-                // We need to remove the first note if it's the exact duplicate of the highest tonic that was already played ascending.
-                const highestTonicMidi = Tone.Midi(initialBaseMidi + (octaves * 12)).toMidi();
-                if (descendingMidiNotes.length > 0 && descendingMidiNotes[0] === highestTonicMidi) {
-                     descendingMidiNotes.shift(); // Remove the duplicate highest tonic
-                }
-                // If it's a 3-octave scale, the first note of the *descending* part is technically the second-highest note.
-                // However, the rule is "all notes matching the tonic note of the scale are twice as long".
-                // So we just iterate through the notes and check if they are tonic.
-
-                descendingMidiNotes.forEach((midiNote) => {
-                    const noteName = Tone.Midi(midiNote).toNote();
+                descendingMidiNotesOnly.forEach((midiNote) => {
+                    const noteName = Tone.Midi(midiNote).toNote(); // Convert to note string here
                     const duration = isScaleTonic(midiNote) ? longTonicDuration : baseNoteDuration;
                     sequenceData.push({ notes: [noteName], duration: duration });
                 });
@@ -848,12 +1167,11 @@
                 let arpeggioIntervals;
                 if (originalString.includes("major arpeggio")) {
                     arpeggioIntervals = [0, 4, 7];
-                } else {
+                } else { // Minor arpeggio
                     arpeggioIntervals = [0, 3, 7];
                 }
                 let currentMidi = initialBaseMidi;
 
-                // Ascending
                 for (let o = 0; o < octaves; o++) {
                     for (let i = 0; i < arpeggioIntervals.length; i++) {
                         sequenceData.push({ notes: [Tone.Midi(currentMidi + arpeggioIntervals[i]).toNote()], duration: baseNoteDuration });
@@ -862,7 +1180,6 @@
                 }
                 sequenceData.push({ notes: [Tone.Midi(initialBaseMidi + (octaves * 12)).toNote()], duration: baseNoteDuration }); // Top tonic
 
-                // Descending (reversing ascending notes)
                 const ascendingNotesCopy = sequenceData.map(item => item.notes[0]);
                 for (let i = ascendingNotesCopy.length - 2; i >= 0; i--) {
                     sequenceData.push({ notes: [ascendingNotesCopy[i]], duration: baseNoteDuration });
@@ -872,90 +1189,74 @@
                 const startMidi = initialBaseMidi;
                 const endMidi = startMidi + (octaves * 12);
 
-                // Ascending
                 for (let midi = startMidi; midi <= endMidi; midi++) {
-                    sequenceData.push({ notes: [Tone.Midi(midi).toNote()], duration: baseNoteDuration });
+                    sequenceData.push({ notes: [Tone.Midi(midi).toNote()], duration: baseNoteDuration }); // Convert to note string
                 }
-                // Descending (from the note one step below the highest, down to the starting note)
                 for (let midi = endMidi - 1; midi >= startMidi; midi--) {
-                    sequenceData.push({ notes: [Tone.Midi(midi).toNote()], duration: baseNoteDuration });
+                    sequenceData.push({ notes: [Tone.Midi(midi).toNote()], duration: baseNoteDuration }); // Convert to note string
                 }
             } else if (type === 'dominant 7th') {
-                const dominant7thIntervals = [0, 4, 7, 10];
+                const dominant7thIntervals = [0, 4, 7, 10]; // Intervals for a Major-Minor 7th (Dominant 7th)
                 let currentMidi = initialBaseMidi;
-                const startOctaveNum = parseInt(startingViolaNote.match(/\d+/)[0]);
 
-                // Ascending
                 for (let o = 0; o < octaves; o++) {
                     for (let i = 0; i < dominant7thIntervals.length; i++) {
-                        sequenceData.push({ notes: [Tone.Midi(currentMidi + dominant7thIntervals[i]).toNote()], duration: baseNoteDuration });
+                        const noteMidi = currentMidi + dominant7thIntervals[i];
+                        sequenceData.push({ notes: [Tone.Midi(noteMidi).toNote()], duration: baseNoteDuration });
                     }
                     currentMidi += 12;
                 }
-                sequenceData.push({ notes: [Tone.Midi(initialBaseMidi + (octaves * 12)).toNote()], duration: baseNoteDuration }); // Top root of arpeggio
+                sequenceData.push({ notes: [Tone.Midi(initialBaseMidi + (octaves * 12)).toNote()], duration: baseNoteDuration }); // Top note of the arpeggio
 
-                // Descending (reversing ascending notes)
                 const ascendingNotesCopy = sequenceData.map(item => item.notes[0]);
                 for (let i = ascendingNotesCopy.length - 2; i >= 0; i--) {
                     sequenceData.push({ notes: [ascendingNotesCopy[i]], duration: baseNoteDuration });
                 }
 
-                // Add the resolving tonic note (e.g., G for Dominant 7th in G)
-                // The parseScaleName gives `root` as the *key* (e.g., 'G' for 'Dominant 7th in G').
-                // The resolving tonic should be this `root` at the *starting octave* for the *dominant 7th*.
-                // This logic seems correct for this purpose.
-                const resolvingTonicMidi = Tone.Midi(`${root}${startOctaveNum}`).toMidi();
-                sequenceData.push({ notes: [Tone.Midi(resolvingTonicMidi).toNote()], duration: baseNoteDuration });
+                // Resolving tonic: find the closest root note (e.g., Bb for Dominant 7th in Bb) to the end of the arpeggio
+                const topOfArpeggioMidi = Tone.Midi(ascendingNotesCopy[ascendingNotesCopy.length - 1]).toMidi();
+                const resolvingRootPc = getNoteIndex(root); // Root of the KEY (e.g., Bb for Dominant 7th in Bb)
+
+                let actualResolvingTonicMidi = topOfArpeggioMidi;
+                let foundResolvingTonic = false;
+                // Search downwards for the closest tonic of the resolving key
+                for (let i = 0; i < 12; i++) {
+                    if (((actualResolvingTonicMidi - i) % 12 + 12) % 12 === resolvingRootPc) {
+                        actualResolvingTonicMidi -= i;
+                        foundResolvingTonic = true;
+                        break;
+                    }
+                }
+                if (!foundResolvingTonic) { // If not found going down, try going up
+                     actualResolvingTonicMidi = topOfArpeggioMidi;
+                     for (let i = 0; i < 12; i++) {
+                        if (((actualResolvingTonicMidi + i) % 12 + 12) % 12 === resolvingRootPc) {
+                            actualResolvingTonicMidi += i;
+                            foundResolvingTonic = true;
+                            break;
+                        }
+                    }
+                }
+
+
+                sequenceData.push({ notes: [Tone.Midi(actualResolvingTonicMidi).toNote()], duration: baseNoteDuration });
 
             } else if (type === 'diminished 7th') {
                 const dim7Intervals = [0, 3, 6, 9];
                 let currentMidi = initialBaseMidi;
 
-                // Ascending
                 for (let o = 0; o < octaves; o++) {
                     for (let i = 0; i < dim7Intervals.length; i++) {
                         sequenceData.push({ notes: [Tone.Midi(currentMidi + dim7Intervals[i]).toNote()], duration: baseNoteDuration });
                     }
                     currentMidi += 12;
                 }
-                sequenceData.push({ notes: [Tone.Midi(initialBaseMidi + (octaves * 12)).toNote()], duration: baseNoteDuration }); // Top root
+                sequenceData.push({ notes: [Tone.Midi(initialBaseMidi + (octaves * 12)).toNote()], duration: baseNoteDuration });
 
-                // Descending (reversing ascending notes)
                 const ascendingNotesCopy = sequenceData.map(item => item.notes[0]);
                 for (let i = ascendingNotesCopy.length - 2; i >= 0; i--) {
                     sequenceData.push({ notes: [ascendingNotesCopy[i]], duration: baseNoteDuration });
                 }
-            } else if (type === 'tetrachord in octaves' || type === 'tetrachord in 6ths') {
-                const scaleTypeForTetrachord = originalString.toLowerCase().includes('major') ? 'major' : 'natural minor';
-                const intervals = scaleIntervals[scaleTypeForTetrachord];
-
-                let tetrachordNotes = [];
-                let currentMidi = initialBaseMidi;
-                // Get the first 4 notes of the scale (1st, 2nd, 3rd, 4th degrees)
-                for (let i = 0; i < 4; i++) {
-                    const noteMidi = currentMidi + intervals[i];
-                    tetrachordNotes.push(Tone.Midi(noteMidi).toNote());
-                }
-
-                // Add ascending notes (1,2,3,4) with octave doubling or 6ths for the pair
-                tetrachordNotes.forEach(note => {
-                    const midi = Tone.Midi(note).toMidi();
-                    if (type === 'tetrachord in octaves') {
-                        sequenceData.push({ notes: [note, Tone.Midi(midi + 12).toNote()], duration: baseNoteDuration });
-                    } else { // 'tetrachord in 6ths' without 'brokenSteps' (if it ever occurs)
-                        sequenceData.push({ notes: [note, Tone.Midi(midi + 9).toNote()], duration: baseNoteDuration }); // For 6ths
-                    }
-                });
-
-                // Add descending notes (4,3,2,1) with octave doubling or 6ths for the pair
-                [...tetrachordNotes].reverse().forEach(note => {
-                    const midi = Tone.Midi(note).toMidi();
-                     if (type === 'tetrachord in octaves') {
-                        sequenceData.push({ notes: [note, Tone.Midi(midi + 12).toNote()], duration: baseNoteDuration });
-                    } else { // 'tetrachord in 6ths' without 'brokenSteps'
-                        sequenceData.push({ notes: [note, Tone.Midi(midi + 9).toNote()], duration: baseNoteDuration }); // For 6ths
-                    }
-                });
             }
 
             return sequenceData;
@@ -987,9 +1288,8 @@
             if (Tone.context.state === 'running') {
                 if (isPlayingDemo) {
                     console.log("Stopping current demo.");
-                    // Dispose of the Transport events if any are pending
                     Tone.Transport.stop();
-                    Tone.Transport.cancel(); // Clear all scheduled events
+                    Tone.Transport.cancel();
                     isPlayingDemo = false;
                     demonstrationButton.textContent = "Play Demo";
                     demonstrationButton.disabled = false;
@@ -999,33 +1299,40 @@
                         scaleDisplay.classList.remove('text-red-600');
                         console.log("Preparing to play demo.");
 
-                        // Find the full scale object from currentAllScales using its name
                         const scaleObjectToPlay = currentAllScales.find(s => s.name === currentScaleSelected);
                         if (!scaleObjectToPlay) {
-                            console.error(`Scale object not found for "${currentScaleSelected}" in currentAllScales. This should not happen if currentAllScales is correctly populated.`);
+                            console.error(`Scale object not found for "${currentScaleSelected}" in currentAllScales.`);
                             scaleDisplay.textContent = `Error: Scale data missing for "${currentScaleSelected}".`;
                             scaleDisplay.classList.add('text-red-600');
                             return;
                         }
 
-                        // Determine the type key for fetching BPM info
                         const parsedScale = parseScaleName(scaleObjectToPlay.name);
                         let typeKey = parsedScale.type;
 
-                        if (scaleObjectToPlay.playbackRule === 'brokenSteps') {
-                            typeKey = 'tetrachord in 6ths'; // Broken steps now uses its own specific tempo key
+                        // Map specific playback rules to tempo categories if needed
+                        if (scaleObjectToPlay.playbackRule === 'simultaneousSixthsCMajor') {
+                            typeKey = 'simultaneousSixthsCMajor';
+                        } else if (scaleObjectToPlay.playbackRule === 'brokenStepsOctavesEMajor') {
+                            typeKey = 'brokenStepsOctavesEMajor';
+                        } else if (scaleObjectToPlay.playbackRule === 'brokenStepsThirdsEbMajor') {
+                            typeKey = 'brokenStepsThirdsEbMajor';
+                        } else if (scaleObjectToPlay.playbackRule === 'brokenStepsTetrachord6ths') {
+                            typeKey = 'brokenStepsTetrachord6ths';
+                        } else if (scaleObjectToPlay.playbackRule === 'brokenStepsFullScale6ths') {
+                            typeKey = 'brokenStepsFullScale6ths';
+                        } else if (scaleObjectToPlay.playbackRule === 'brokenStepsTetrachordOctaves') {
+                            typeKey = 'brokenStepsTetrachordOctaves';
                         } else if (['major', 'natural minor', 'harmonic minor', 'melodic minor'].includes(typeKey)) {
-                            typeKey = 'major'; // Using 'major' as the general key for all basic scales
-                        } else if (['scale in 6ths', 'tetrachord in octaves'].includes(typeKey)) {
-                            typeKey = 'scale in 6ths'; // Use a consistent key for other double-stop scales
+                            typeKey = 'major'; // Default for general scales if not explicitly overridden
                         }
-                        // For chromatic, dominant 7th, diminished 7th, the typeKey is already correct.
+
 
                         const bpmInfo = gradeDefaultTempi[currentGrade] ? gradeDefaultTempi[currentGrade][typeKey] : null;
 
                         if (!bpmInfo) {
                              console.warn(`No specific BPM info found for type ${typeKey} in grade ${currentGrade}. Using default 60 BPM.`);
-                             Tone.Transport.bpm.value = 60; // Fallback
+                             Tone.Transport.bpm.value = 60;
                              bpmSlider.value = 60;
                              bpmValueDisplay.textContent = 60;
                         } else {
@@ -1049,24 +1356,24 @@
                         demonstrationButton.textContent = "Stop";
                         demonstrationButton.disabled = false;
 
-                        Tone.Transport.cancel(); // Clear all previously scheduled events
+                        Tone.Transport.cancel();
 
                         let currentTime = 0;
                         notesAndDurations.forEach((event, index) => {
                             const durationInSeconds = Tone.Time(event.duration).toSeconds();
                             Tone.Transport.scheduleOnce((time) => {
+                                console.log(`DEBUG: Triggering Note(s): ${JSON.stringify(event.notes)} at time ${time.toFixed(4)} for duration ${event.duration}`);
                                 synth.triggerAttackRelease(event.notes, event.duration, time);
                             }, currentTime);
-                            currentTime += durationInSeconds; // Advance time based on *this note's* duration
+                            currentTime += durationInSeconds;
                         });
 
-                        // Schedule the stopping of transport after all notes are played
                         Tone.Transport.scheduleOnce(() => {
                             console.log("Demo sequence finished naturally.");
                             if (isPlayingDemo) {
-                                toggleDemonstration(); // This will reset the button text and state
+                                toggleDemonstration();
                             }
-                        }, currentTime + Tone.Time("16n").toSeconds()); // Add a small buffer at the end
+                        }, currentTime + Tone.Time("16n").toSeconds());
 
                         Tone.Transport.start();
                         isPlayingDemo = true;
@@ -1103,13 +1410,22 @@
         function renderScalesList() {
             allScalesListContainer.innerHTML = '';
 
-            // Filter scales based on the selected minor type for display
-            const scalesToDisplay = currentAllScales.filter(scaleObj => {
-                if (scaleObj.minorType) {
-                    return scaleObj.minorType === selectedMinorType;
-                }
-                return true; // Include all non-minor scales or natural minors
-            });
+            let scalesToDisplay;
+            const gradeNum = parseInt(currentGrade.replace('Grade ', ''));
+
+            // Apply minorType filter only for grades 2-5
+            if (gradeNum >= 2 && gradeNum <= 5) {
+                scalesToDisplay = currentAllScales.filter(scaleObj => {
+                    if (scaleObj.minorType) {
+                        return scaleObj.minorType === selectedMinorType;
+                    }
+                    return true;
+                });
+            } else {
+                // For other grades (1, 6, 7, 8), include all major/minor types present
+                scalesToDisplay = [...currentAllScales];
+            }
+
 
             if (scalesToDisplay.length === 0) {
                 const noScalesMessage = document.createElement('div');
@@ -1134,6 +1450,7 @@
                     return;
                 }
                 const type = parsed.type;
+                const playbackRule = scaleObj.playbackRule;
 
                 if (['major', 'natural minor', 'harmonic minor', 'melodic minor'].includes(type)) {
                     categorizedScales["Major & Minor Scales"].push(scaleObj);
@@ -1141,7 +1458,14 @@
                     categorizedScales["Chromatic, Dominant & Diminished"].push(scaleObj);
                 } else if (type === 'arpeggio') {
                     categorizedScales["Arpeggios"].push(scaleObj);
-                } else if (['scale in 6ths', 'tetrachord in octaves', 'tetrachord in 6ths'].includes(type)) {
+                } else if (
+                    playbackRule === 'brokenStepsTetrachord6ths' ||
+                    playbackRule === 'brokenStepsFullScale6ths' ||
+                    playbackRule === 'brokenStepsTetrachordOctaves' ||
+                    playbackRule === 'simultaneousSixthsCMajor' || // New rule
+                    playbackRule === 'brokenStepsOctavesEMajor' ||  // New rule
+                    playbackRule === 'brokenStepsThirdsEbMajor'     // New rule
+                ) {
                     categorizedScales["Double Stop Scales"].push(scaleObj);
                 } else {
                     console.warn(`Scale "${scaleObj.name}" did not fit into any defined category.`);
@@ -1156,12 +1480,11 @@
 
                     const gradeTempi = gradeDefaultTempi[currentGrade];
                     if (gradeTempi) {
-                        if (category === "Major & Minor Scales" && gradeTempi.major) { // Use 'major' as a representative for all scales
+                        if (category === "Major & Minor Scales" && gradeTempi.major) {
                             tempoInfo = ` (${gradeTempi.major.displayTempo})`;
                         } else if (category === "Arpeggios" && gradeTempi.arpeggio) {
                             tempoInfo = ` (${gradeTempi.arpeggio.displayTempo})`;
                         } else if (category === "Chromatic, Dominant & Diminished") {
-                            // Determine which type's tempo to display if multiple exist in the category
                             const typesInThisCategory = categorizedScales[category].map(s => parseScaleName(s.name).type);
                             if (typesInThisCategory.includes('chromatic') && gradeTempi.chromatic) {
                                 tempoInfo = ` (${gradeTempi.chromatic.displayTempo})`;
@@ -1171,20 +1494,32 @@
                                 tempoInfo = ` (${gradeTempi['diminished 7th'].displayTempo})`;
                             }
                         } else if (category === "Double Stop Scales") {
-                            // Determine which type's tempo to display if multiple exist in the category
-                            const typesInThisCategory = categorizedScales[category].map(s => parseScaleName(s.name).type);
-                            if (typesInThisCategory.includes('tetrachord in 6ths') && gradeTempi['tetrachord in 6ths']) { // Prioritize specific tetrachord type
-                                tempoInfo = ` (${gradeTempi['tetrachord in 6ths'].displayTempo})`;
-                            } else if (typesInThisCategory.includes('scale in 6ths') && gradeTempi['scale in 6ths']) {
-                                tempoInfo = ` (${gradeTempi['scale in 6ths'].displayTempo})`;
-                            } else if (typesInThisCategory.includes('tetrachord in octaves') && gradeTempi['tetrachord in octaves']) {
-                                tempoInfo = ` (${gradeTempi['tetrachord in octaves'].displayTempo})`;
+                            // Check for specific playback rules within Double Stop Scales
+                            const hasSimultaneousSixths = categorizedScales[category].some(s => s.playbackRule === 'simultaneousSixthsCMajor');
+                            const hasBrokenStepsOctaves = categorizedScales[category].some(s => s.playbackRule === 'brokenStepsOctavesEMajor');
+                            const hasBrokenStepsThirds = categorizedScales[category].some(s => s.playbackRule === 'brokenStepsThirdsEbMajor');
+                            const hasTetrachord6ths = categorizedScales[category].some(s => s.playbackRule === 'brokenStepsTetrachord6ths');
+                            const hasFullScale6ths = categorizedScales[category].length > 0 && categorizedScales[category][0].playbackRule === 'brokenStepsFullScale6ths';
+                            const hasTetrachordOctaves = categorizedScales[category].some(s => s.playbackRule === 'brokenStepsTetrachordOctaves');
+
+                            if (hasSimultaneousSixths && gradeTempi.simultaneousSixthsCMajor) {
+                                tempoInfo = ` (${gradeTempi.simultaneousSixthsCMajor.displayTempo})`;
+                            } else if (hasBrokenStepsOctaves && gradeTempi.brokenStepsOctavesEMajor) {
+                                tempoInfo = ` (${gradeTempi.brokenStepsOctavesEMajor.displayTempo})`;
+                            } else if (hasBrokenStepsThirds && gradeTempi.brokenStepsThirdsEbMajor) {
+                                tempoInfo = ` (${gradeTempi.brokenStepsThirdsEbMajor.displayTempo})`;
+                            } else if (hasTetrachord6ths && gradeTempi.brokenStepsTetrachord6ths) {
+                                tempoInfo = ` (${gradeTempi.brokenStepsTetrachord6ths.displayTempo})`;
+                            } else if (hasFullScale6ths && gradeTempi.brokenStepsFullScale6ths) {
+                                tempoInfo = ` (${gradeTempi.brokenStepsFullScale6ths.displayTempo})`;
+                            } else if (hasTetrachordOctaves && gradeTempi.brokenStepsTetrachordOctaves) {
+                                tempoInfo = ` (${gradeTempi.brokenStepsTetrachordOctaves.displayTempo})`;
                             }
                         }
                     }
 
                     categoryHeading.textContent = `${category}${tempoInfo}`;
-                    categoryHeading.classList.add('category-heading', 'w-full', 'col-span-1', 'sm:col-span-2'); // Span both columns
+                    categoryHeading.classList.add('category-heading', 'w-full', 'col-span-1', 'sm:col-span-2');
                     allScalesListContainer.appendChild(categoryHeading);
 
                     categorizedScales[category].forEach(scaleObj => {
@@ -1226,10 +1561,9 @@
         function showCongratulationsPopup() {
             modalScalesList.innerHTML = '';
 
-            // Sort all scales for the grade (from currentAllScales)
             const sortedScales = [...currentAllScales].sort((a, b) => {
-                const ratingA = getAverageRating(a.name); // Pass scale name for rating
-                const ratingB = getAverageRating(b.name); // Pass scale name for rating
+                const ratingA = getAverageRating(a.name);
+                const ratingB = getAverageRating(b.name);
                 return ratingA - ratingB;
             });
 
@@ -1262,27 +1596,29 @@
          * Resets the available scales for a new random round for the current grade, applying the minor type filter.
          */
         function resetRandomRound() {
-            // Filter the full list of scales for the current grade based on the selected minor type
-            const filteredScales = currentAllScales.filter(scaleObj => {
-                if (scaleObj.minorType) {
-                    return scaleObj.minorType === selectedMinorType;
-                }
-                return true; // Include all non-minor scales or natural minors
-            });
+            let scalesToFilter = [...currentAllScales];
+            const gradeNum = parseInt(currentGrade.replace('Grade ', ''));
+
+            if (gradeNum >= 2 && gradeNum <= 5) {
+                scalesToFilter = scalesToFilter.filter(scaleObj => {
+                    if (scaleObj.minorType) {
+                        return scaleObj.minorType === selectedMinorType;
+                    }
+                    return true;
+                });
+            }
 
             if (isFirstRandomRoundCompleted) {
-                // If it's not the first round, sort by average rating (hardest to easiest)
-                availableScales = [...filteredScales].sort((a, b) => {
+                availableScales = [...scalesToFilter].sort((a, b) => {
                     const ratingA = getAverageRating(a.name);
                     const ratingB = getAverageRating(b.name);
                     return ratingA - ratingB;
                 });
                 console.log("Scales sorted for next random round based on ratings:", availableScales.map(s => s.name));
             } else {
-                // For the very first round of a grade, use the filtered scales in their original order
-                availableScales = [...filteredScales];
+                availableScales = [...scalesToFilter];
             }
-            renderScalesList(); // Re-render the displayed list
+            renderScalesList();
         }
 
         /**
@@ -1298,16 +1634,14 @@
             let randomIndex;
             let chosenScaleObj;
 
-            // Ensure not to pick the same scale twice in a row if there's more than one available
             do {
                 randomIndex = Math.floor(Math.random() * availableScales.length);
                 chosenScaleObj = availableScales[randomIndex];
             } while (chosenScaleObj && previousScale && chosenScaleObj.name === previousScale.name && availableScales.length > 1);
 
-            // Remove the chosen scale from availableScales
             availableScales.splice(randomIndex, 1);
             previousScale = chosenScaleObj;
-            renderScalesList(); // Update the displayed list to grey out the selected scale
+            renderScalesList();
             return chosenScaleObj;
         }
 
@@ -1321,21 +1655,35 @@
             }
 
             scaleDisplay.textContent = scaleName;
-            currentScaleSelected = scaleName; // Store only the name; the object is found in toggleDemonstration
+            currentScaleSelected = scaleName;
 
-            // Immediately set the BPM for the selected scale when in practice mode
             const scaleObjectToPlay = currentAllScales.find(s => s.name === currentScaleSelected);
+            if (!scaleObjectToPlay) {
+                console.error(`Scale object not found for "${currentScaleSelected}" in currentAllScales.`);
+                scaleDisplay.textContent = `Error: Scale data missing for "${currentScaleSelected}".`;
+                scaleDisplay.classList.add('text-red-600');
+                return;
+            }
             const parsedScale = parseScaleName(scaleObjectToPlay.name);
             let typeKey = parsedScale.type;
 
-            if (scaleObjectToPlay.playbackRule === 'brokenSteps') {
-                typeKey = 'tetrachord in 6ths'; // Broken steps now uses its own specific tempo key
+            // Map specific playback rules to tempo categories if needed
+            if (scaleObjectToPlay.playbackRule === 'simultaneousSixthsCMajor') {
+                typeKey = 'simultaneousSixthsCMajor';
+            } else if (scaleObjectToPlay.playbackRule === 'brokenStepsOctavesEMajor') {
+                typeKey = 'brokenStepsOctavesEMajor';
+            } else if (scaleObjectToPlay.playbackRule === 'brokenStepsThirdsEbMajor') {
+                typeKey = 'brokenStepsThirdsEbMajor';
+            } else if (scaleObjectToPlay.playbackRule === 'brokenStepsTetrachord6ths') {
+                typeKey = 'brokenStepsTetrachord6ths';
+            } else if (scaleObjectToPlay.playbackRule === 'brokenStepsFullScale6ths') {
+                typeKey = 'brokenStepsFullScale6ths';
+            } else if (scaleObjectToPlay.playbackRule === 'brokenStepsTetrachordOctaves') {
+                typeKey = 'brokenStepsTetrachordOctaves';
             } else if (['major', 'natural minor', 'harmonic minor', 'melodic minor'].includes(typeKey)) {
-                typeKey = 'major'; // Using 'major' as the general key for all basic scales
-            } else if (['scale in 6ths', 'tetrachord in octaves'].includes(typeKey)) {
-                typeKey = 'scale in 6ths'; // Use a consistent key for other double-stop scales
+                typeKey = 'major'; // Default for general scales if not explicitly overridden
             }
-            // For chromatic, dominant 7th, diminished 7th, the typeKey is already correct.
+
 
             const bpmInfo = gradeDefaultTempi[currentGrade] ? gradeDefaultTempi[currentGrade][typeKey] : null;
 
@@ -1344,7 +1692,6 @@
                 bpmSlider.value = bpmInfo.bpm;
                 bpmValueDisplay.textContent = bpmInfo.bpm;
             } else {
-                // Fallback if no specific BPM info is found for practice mode selection
                 Tone.Transport.bpm.value = 60;
                 bpmSlider.value = 60;
                 bpmValueDisplay.textContent = 60;
@@ -1356,49 +1703,47 @@
             stars.forEach(star => star.classList.remove('selected'));
 
             scaleDisplay.classList.remove('animate-pulse');
-            void scaleDisplay.offsetWidth; // Trigger reflow for animation reset
+            void scaleDisplay.offsetWidth;
             scaleDisplay.classList.add('animate-pulse');
             setTimeout(() => {
                 scaleDisplay.classList.remove('animate-pulse');
             }, 500);
         }
 
-        // --- New Grade Selection Logic ---
+        /**
+         * Handles grade selection.
+         * @param {string} grade - The selected grade (e.g., "Grade 1").
+         */
         async function selectGrade(grade) {
             currentGrade = grade;
             mainTitle.textContent = `Grade ${grade.replace('Grade ', '')} Scale Practise App`;
 
-            // currentAllScales now ALWAYS holds the full list of scale objects for the grade,
-            // including both harmonic and melodic if they exist in the raw data.
             currentAllScales = allGradeScales[grade];
 
-            // Reset ratings for ALL scales in the current grade, including those not currently displayed.
             scaleRatings = {};
             currentAllScales.forEach(scaleObj => {
                 scaleRatings[scaleObj.name] = [];
             });
 
-            previousScale = null; // Reset previous scale for a new grade
-            currentScaleSelected = null; // Clear currently selected scale
-            isFirstRandomRoundCompleted = false; // Reset for a new grade selection
+            previousScale = null;
+            currentScaleSelected = null;
+            isFirstRandomRoundCompleted = false;
 
             scaleDisplay.textContent = "Click 'Gimme a Scale!' to start!";
             actionContainer.classList.add('hidden');
             gimmeScaleButton.classList.remove('hidden');
-            isPracticeMode = false; // Always start a new grade in random mode
+            isPracticeMode = false;
 
             gradeSelectionScreen.classList.add('hidden');
             practiceScreen.classList.remove('hidden');
-            practiceScreen.style.display = 'flex'; // Ensure flex layout
+            practiceScreen.style.display = 'flex';
 
-            // Set initial BPM for the grade
             const gradeTempi = gradeDefaultTempi[currentGrade];
-            if (gradeTempi && gradeTempi.major) { // Default to 'major' scale BPM for the initial view
+            if (gradeTempi && gradeTempi.major) {
                 Tone.Transport.bpm.value = gradeTempi.major.bpm;
                 bpmSlider.value = gradeTempi.major.bpm;
                 bpmValueDisplay.textContent = gradeTempi.major.bpm;
             } else {
-                // Fallback if no specific 'scale' BPM for the grade
                 Tone.Transport.bpm.value = 60;
                 bpmSlider.value = 60;
                 bpmValueDisplay.textContent = 60;
@@ -1409,12 +1754,14 @@
             if (gradeNum >= 2 && gradeNum <= 5) {
                 await showMinorSelectionModal();
             } else {
-                // For other grades, just reset available scales (no minor filtering needed)
-                resetRandomRound(); // This will populate availableScales and render the list
+                resetRandomRound();
             }
         }
 
-        // --- Minor Selection Modal Logic ---
+        /**
+         * Displays the modal for selecting harmonic or melodic minor scales for grades 2-5.
+         * @returns {Promise<void>} A promise that resolves when a selection is made or the modal is closed.
+         */
         function showMinorSelectionModal() {
             return new Promise((resolve) => {
                 minorSelectionModal.classList.remove('hidden');
@@ -1422,22 +1769,24 @@
                 const handleSelection = (type) => {
                     selectedMinorType = type;
                     minorSelectionModal.classList.add('hidden');
-                    resetRandomRound(); // Apply the filter to scales and re-render list
+                    resetRandomRound();
                     resolve();
                 };
 
                 harmonicButton.onclick = () => handleSelection('harmonic');
                 melodicButton.onclick = () => handleSelection('melodic');
                 closeMinorSelectionModalButton.onclick = () => {
-                    selectedMinorType = 'harmonic'; // Default if closed without explicit choice
+                    selectedMinorType = 'harmonic';
                     minorSelectionModal.classList.add('hidden');
-                    resetRandomRound(); // Apply default filter and re-render list
+                    resetRandomRound();
                     resolve();
                 };
             });
         }
 
-
+        /**
+         * Dynamically creates the grade selection buttons.
+         */
         function createGradeButtons() {
             for (let i = 1; i <= 8; i++) {
                 const button = document.createElement('button');
@@ -1462,10 +1811,10 @@
                 toggleDemonstration();
             }
 
-            const scaleObj = selectRandomScale(); // Now returns an object
+            const scaleObj = selectRandomScale();
             if (scaleObj) {
                 scaleDisplay.textContent = scaleObj.name;
-                currentScaleSelected = scaleObj.name; // Store the name for display/lookup
+                currentScaleSelected = scaleObj.name;
 
                 gimmeScaleButton.classList.add('hidden');
                 actionContainer.classList.remove('hidden');
@@ -1509,32 +1858,26 @@
                 gimmeScaleButton.classList.remove('hidden');
                 scaleDisplay.textContent = "Click 'Gimme a Scale!' to start!";
             }
-            renderScalesList(); // Re-render to show/hide clickable scales based on mode
+            renderScalesList();
         });
 
         demonstrationButton.addEventListener('click', toggleDemonstration);
 
-        // Slider event listener to update BPM
         bpmSlider.addEventListener('input', () => {
             Tone.Transport.bpm.value = bpmSlider.value;
             bpmValueDisplay.textContent = bpmSlider.value;
             console.log("BPM set to:", bpmSlider.value);
         });
 
-        // Volume Slider Logic
         volumeSlider.addEventListener('input', () => {
             const sliderValue = parseInt(volumeSlider.value);
-            volumeValueDisplay.textContent = sliderValue; // Display percentage
+            volumeValueDisplay.textContent = sliderValue;
 
             if (sliderValue === 0) {
-                Tone.Destination.volume.value = -Infinity; // Mute
+                Tone.Destination.volume.value = -Infinity;
             } else {
-                // Map the 0-100 linear slider value to a -60dB to 0dB range.
-                // This gives a perception of more linear volume change.
-                // -60dB is often considered "silent" in practical audio applications.
                 const minDb = -60;
                 const maxDb = 0;
-                // Calculate dB value: (sliderValue / 100) * (maxDb - minDb) + minDb
                 const dbValue = (sliderValue / 100) * (maxDb - minDb) + minDb;
                 Tone.Destination.volume.value = dbValue;
             }
@@ -1574,7 +1917,7 @@
                     console.log(`Rated "${currentScaleSelected}" as ${rating} stars. All ratings:`, scaleRatings);
                 }
 
-                renderScalesList(); // Re-render the list to update average ratings and grey out completed scales
+                renderScalesList();
 
                 if (isPlayingDemo) {
                     toggleDemonstration();
@@ -1592,16 +1935,14 @@
         closeModalButton.addEventListener('click', hideCongratulationsPopup);
 
         backToGradesButton.addEventListener('click', () => {
-            if (isPlayingDemo) { // Stop any ongoing demo
+            if (isPlayingDemo) {
                 toggleDemonstration();
             }
             practiceScreen.classList.add('hidden');
             gradeSelectionScreen.classList.remove('hidden');
-            // When going back to grade selection, reset main title to the app's name
             mainTitle.textContent = "Elliot's Scale Practise App for MTB Viola Exams";
         });
 
-        // Help Modal Event Listeners
         helpIcon.addEventListener('click', () => {
             helpModal.classList.remove('hidden');
         });
@@ -1613,11 +1954,10 @@
 
         // --- Initial Load Logic ---
         window.onload = () => {
-            createGradeButtons(); // Populate grade selection buttons
-            bpmValueDisplay.textContent = bpmSlider.value; // Set initial BPM display
-            volumeValueDisplay.textContent = volumeSlider.value; // Set initial volume display (percentage)
-            // The app starts on the grade selection screen, practiceScreen is hidden by default.
-            console.log("App loaded. Version: 2024-06-14-04-10"); // Unique version identifier
+            createGradeButtons();
+            bpmValueDisplay.textContent = bpmSlider.value;
+            volumeValueDisplay.textContent = volumeSlider.value;
+            console.log("App loaded. Version: 2024-06-14-07-30");
         };
     </script>
 </body>
